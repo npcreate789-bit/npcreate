@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -30,17 +34,34 @@ def create_app() -> FastAPI:
             raise RuntimeError(f"weak production backend secret(s): {', '.join(weak)}")
     with connect(settings.db_target) as conn:
         migrate(conn)
-    app = FastAPI(title="NP Create License Backend", version="2.4.0", docs_url=None if settings.env == "production" else "/docs")
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        # Startup: kick off background jobs.
+        job_task: asyncio.Task | None = None
+        if settings.billing_job_enabled:
+            job_task = asyncio.create_task(billing_job_loop(settings))
+        try:
+            yield
+        finally:
+            # Shutdown: cancel jobs cleanly.
+            if job_task and not job_task.done():
+                job_task.cancel()
+                try:
+                    await job_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+    app = FastAPI(
+        title="NP Create License Backend",
+        version="2.4.0",
+        docs_url=None if settings.env == "production" else "/docs",
+        lifespan=lifespan,
+    )
     app.include_router(public_router)
     app.include_router(auth_router)
     app.include_router(dashboard_router)
     app.include_router(admin_router)
-
-    @app.on_event("startup")
-    async def _start_background_jobs() -> None:
-        if settings.billing_job_enabled:
-            import asyncio
-            asyncio.create_task(billing_job_loop(settings))
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:

@@ -1,0 +1,49 @@
+# Start backend + Postgres in one command:
+#   docker compose up --build
+#
+# Admin login at http://localhost:8088/admin/login
+# Use scripts/admin_create_user.py against the running container to seed admins.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: npcreate
+      POSTGRES_PASSWORD: npcreate_dev
+      POSTGRES_DB: npcreate
+    ports:
+      - "5432:5432"
+    volumes:
+      - npcreate_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U npcreate -d npcreate"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NPCREATE_BACKEND_ENV: development
+      NPCREATE_BACKEND_HOST: 0.0.0.0
+      NPCREATE_BACKEND_PORT: "8088"
+      NPCREATE_BACKEND_DATABASE_URL: postgresql://npcreate:npcreate_dev@postgres:5432/npcreate
+      NPCREATE_BACKEND_ADMIN_TOKEN: dev_admin_token_please_change_at_least_24chars_long
+      NPCREATE_BACKEND_APP_API_KEY: dev_app_api_key_please_change_at_least_24chars_long
+      NPCREATE_BACKEND_KEY_PEPPER: dev_key_pepper_please_change_at_least_24chars_long
+      NPCREATE_BACKEND_PAYMENT_WEBHOOK_SECRET: dev_payment_webhook_secret_please_change_24chars
+      NPCREATE_BACKEND_BILLING_JOB_ENABLED: "true"
+      NPCREATE_BACKEND_ALLOW_LEGACY_ADMIN_TOKEN: "false"
+      NPCREATE_BACKEND_ACTIVATION_ACCESS_TTL_MINUTES: "30"
+      NPCREATE_BACKEND_ACTIVATION_TOKEN_TTL_DAYS: "35"
+      NPCREATE_BACKEND_ADMIN_SESSION_IDLE_TIMEOUT_MINUTES: "30"
+      NPCREATE_BACKEND_AUTH_REFRESH_RATE_LIMIT_PER_MINUTE: "30"
+    ports:
+      - "8088:8088"
+    restart: unless-stopped
+
+volumes:
+  npcreate_pgdata:
