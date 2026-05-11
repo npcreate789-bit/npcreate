@@ -1,0 +1,11 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>ภาพรวมระบบหลังบ้าน</h1><p>จัดการ License, Payment, Device และ Support ในหน้าเดียว</p></div><span class="pill green">SECURE</span></div>
+<div class="grid">
+{% for label,key in [('License','licenses'),('Device','devices'),('Subscription','subscriptions'),('Payment','payments')] %}
+  <div class="card"><div class="muted">{{label}}</div><div class="metric">{{counts[key]}}</div></div>
+{% endfor %}
+</div>
+<div class="section card"><h2>License ล่าสุด</h2><table><tr><th>ลูกค้า</th><th>Status</th><th>หมดอายุ</th><th>ID</th></tr>{% for x in licenses %}<tr><td>{{x.customer_name}}</td><td><span class="pill {{'green' if x.status=='active' else 'yellow'}}">{{x.status}}</span></td><td>{{x.expires_at}}</td><td>{{x.license_id}}</td></tr>{% endfor %}</table></div>
+<div class="section card"><h2>Payment Events ล่าสุด</h2><table><tr><th>Provider</th><th>Type</th><th>Status</th><th>Received</th></tr>{% for x in events %}<tr><td>{{x.provider}}</td><td>{{x.event_type}}</td><td>{{x.processing_status}}</td><td>{{x.received_at}}</td></tr>{% endfor %}</table></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>Logs / Error Reports</h1><p>ตรวจสอบ Audit Log และปัญหาที่ส่งมาจากโปรแกรมลูกค้า</p></div></div>
+<div class="card"><h2>Error Reports (ล่าสุด 100)</h2><table><tr><th>Severity</th><th>Title</th><th>Version</th><th>Status</th><th>Created</th></tr>{% for x in errors %}<tr><td>{{x.severity}}</td><td>{{x.title}}</td><td>{{x.app_version}}</td><td>{{x.status}}</td><td>{{x.created_at}}</td></tr>{% endfor %}</table></div>
+<div class="section card">
+  <h2>Audit Logs</h2>
+  <form method="get" action="/admin/logs" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <input class="input" type="text" name="action" value="{{filters.action}}" placeholder="action เช่น license.renew" style="flex:1;min-width:200px;margin:0">
+    <input class="input" type="text" name="actor_id" value="{{filters.actor_id}}" placeholder="actor_id" style="flex:1;min-width:200px;margin:0">
+    <button class="btn" type="submit">กรอง</button>
+  </form>
+  <table><tr><th>Actor</th><th>Action</th><th>Target</th><th>Created</th></tr>{% for x in audits %}<tr><td>{{x.actor_type}}/{{x.actor_id}}</td><td>{{x.action}}</td><td>{{x.target_type}}/{{x.target_id}}</td><td>{{x.created_at}}</td></tr>{% endfor %}</table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
+    <span>
+      {% if meta.has_prev %}<a class="btn secondary" href="?action={{filters.action}}&actor_id={{filters.actor_id}}&limit={{meta.limit}}&offset={{meta.prev_offset}}">ก่อนหน้า</a>{% endif %}
+      {% if meta.has_next %}<a class="btn" href="?action={{filters.action}}&actor_id={{filters.actor_id}}&limit={{meta.limit}}&offset={{meta.next_offset}}">ถัดไป</a>{% endif %}
+    </span>
+  </div>
+</div>
+{% endblock %}

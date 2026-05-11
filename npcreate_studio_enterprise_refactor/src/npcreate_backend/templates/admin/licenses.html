@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>จัดการ License</h1><p>ดูสถานะลูกค้า วันหมดอายุ และข้อมูลติดต่อ</p></div></div>
+<div class="card">
+  <form method="get" action="/admin/licenses" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <input class="input" type="text" name="q" value="{{filters.q}}" placeholder="ค้นหา ชื่อลูกค้า / ติดต่อ / license_id" style="flex:1;min-width:240px;margin:0">
+    <select class="input" name="status_filter" style="width:160px;margin:0">
+      <option value="">ทุกสถานะ</option>
+      <option value="active" {% if filters.status_filter=='active' %}selected{% endif %}>active</option>
+      <option value="past_due" {% if filters.status_filter=='past_due' %}selected{% endif %}>past_due</option>
+      <option value="suspended" {% if filters.status_filter=='suspended' %}selected{% endif %}>suspended</option>
+      <option value="expired" {% if filters.status_filter=='expired' %}selected{% endif %}>expired</option>
+    </select>
+    <button class="btn" type="submit">ค้นหา</button>
+  </form>
+  <table><tr><th>ลูกค้า</th><th>ติดต่อ</th><th>Status</th><th>Plan</th><th>หมดอายุ</th><th>ID</th></tr>{% for x in items %}<tr><td>{{x.customer_name}}</td><td>{{x.customer_contact}}</td><td><span class="pill {{'green' if x.status=='active' else 'yellow'}}">{{x.status}}</span></td><td>{{x.plan}}</td><td>{{x.expires_at}}</td><td>{{x.license_id}}</td></tr>{% endfor %}</table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
+    <span>
+      {% if meta.has_prev %}<a class="btn secondary" href="?q={{filters.q}}&status_filter={{filters.status_filter}}&limit={{meta.limit}}&offset={{meta.prev_offset}}">ก่อนหน้า</a>{% endif %}
+      {% if meta.has_next %}<a class="btn" href="?q={{filters.q}}&status_filter={{filters.status_filter}}&limit={{meta.limit}}&offset={{meta.next_offset}}">ถัดไป</a>{% endif %}
+    </span>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{
+  "src/adb.py": [
+    "src/npcreate_studio/services/adb_service.py",
+    "src/npcreate_studio/infrastructure/subprocess_runner.py"
+  ],
+  "src/platform_tools.py": [
+    "src/npcreate_studio/infrastructure/toolchain.py"
+  ],
+  "src/ffmpeg_streamer.py": [
+    "src/npcreate_studio/services/media_service.py"
+  ],
+  "src/rtmp_server.py": [
+    "src/npcreate_studio/services/media_service.py"
+  ],
+  "src/license_key.py": [
+    "src/npcreate_studio/services/license_service.py"
+  ],
+  "src/backup_restore.py": [
+    "src/npcreate_studio/services/backup_service.py"
+  ],
+  "src/auto_update.py": [
+    "src/npcreate_studio/services/updater_service.py",
+    "src/npcreate_studio/core/security.py"
+  ],
+  "src/webapp/server.py": [
+    "src/npcreate_studio/web/api.py",
+    "src/npcreate_studio/web/server.py",
+    "src/npcreate_studio/web/auth.py"
+  ],
+  "src/webapp/db.py": [
+    "src/npcreate_studio/infrastructure/db.py"
+  ],
+  "src/ui/studio_pages.py": [
+    "src/npcreate_studio/ui/pages/*",
+    "src/npcreate_studio/ui/components/*"
+  ]
+}

@@ -1,0 +1,160 @@
+npcreate_studio_enterprise_refactor/
+├── .pytest_cache/
+│   ├── v/
+│   │   └── cache/
+│   │       └── nodeids
+│   ├── .gitignore
+│   ├── CACHEDIR.TAG
+│   └── README.md
+├── backend_data/
+│   └── npcreate_backend.sqlite3
+├── docs/
+│   ├── ARCHITECTURE_TH.md
+│   ├── AUTO_BILLING_DEVICE_POLICY_TH.md
+│   ├── BACKEND_API_BILLING_REFERENCE_TH.md
+│   ├── BACKEND_API_REFERENCE_TH.md
+│   ├── ENTERPRISE_PRODUCTION_UPGRADE_TH.md
+│   ├── FILE_STRUCTURE_LICENSE_UPDATE_TH.md
+│   ├── FILE_STRUCTURE_TH.md
+│   ├── LICENSE_UPDATE_BACKEND_TH.md
+│   ├── MIGRATION_PLAN_TH.md
+│   ├── PRODUCTION_CHECKLIST_TH.md
+│   ├── SECURITY_AUDIT_TH.md
+│   ├── SECURITY_UI_REFACTOR_TH.md
+│   └── UX_UI_STRUCTURE_TH.md
+├── installer/
+│   └── NPCreateStudio.iss
+├── scripts/
+│   ├── admin_create_license.py
+│   ├── admin_create_subscription.py
+│   ├── admin_create_user.py
+│   ├── build_windows_installer.ps1
+│   ├── generate_tools_manifest.py
+│   ├── publish_update_manifest.py
+│   ├── run_billing_maintenance.py
+│   ├── sign_windows_artifacts.ps1
+│   ├── simulate_payment_webhook.py
+│   └── verify_bundled_tools.py
+├── src/
+│   ├── npcreate_backend/
+│   │   ├── templates/
+│   │   │   └── admin/
+│   │   │       ├── base.html
+│   │   │       ├── dashboard.html
+│   │   │       ├── devices.html
+│   │   │       ├── licenses.html
+│   │   │       ├── login.html
+│   │   │       ├── logs.html
+│   │   │       ├── payments.html
+│   │   │       └── settings.html
+│   │   ├── __init__.py
+│   │   ├── __main__.py
+│   │   ├── admin_security.py
+│   │   ├── app.py
+│   │   ├── auth.py
+│   │   ├── billing.py
+│   │   ├── db.py
+│   │   ├── jobs.py
+│   │   ├── models.py
+│   │   ├── payment_providers.py
+│   │   ├── routes_admin.py
+│   │   ├── routes_auth.py
+│   │   ├── routes_dashboard.py
+│   │   ├── routes_public.py
+│   │   ├── security.py
+│   │   ├── settings.py
+│   │   └── templates.py
+│   └── npcreate_studio/
+│       ├── core/
+│       │   ├── __init__.py
+│       │   ├── errors.py
+│       │   ├── logging.py
+│       │   ├── security.py
+│       │   └── settings.py
+│       ├── domain/
+│       │   ├── __init__.py
+│       │   ├── devices.py
+│       │   ├── licenses.py
+│       │   ├── sales.py
+│       │   └── streams.py
+│       ├── infrastructure/
+│       │   ├── __init__.py
+│       │   ├── db.py
+│       │   ├── filesystem.py
+│       │   ├── secure_store.py
+│       │   ├── subprocess_runner.py
+│       │   └── toolchain.py
+│       ├── scripts/
+│       │   ├── __init__.py
+│       │   └── verify_bundled_tools.py
+│       ├── services/
+│       │   ├── __init__.py
+│       │   ├── adb_service.py
+│       │   ├── backup_service.py
+│       │   ├── client_state_service.py
+│       │   ├── device_identity.py
+│       │   ├── error_reporter.py
+│       │   ├── license_client.py
+│       │   ├── license_service.py
+│       │   ├── media_service.py
+│       │   ├── mirror_service.py
+│       │   ├── notification_service.py
+│       │   ├── shop_api_service.py
+│       │   ├── update_client.py
+│       │   └── updater_service.py
+│       ├── ui/
+│       │   ├── components/
+│       │   │   ├── __init__.py
+│       │   │   ├── status_card.py
+│       │   │   └── toast.py
+│       │   ├── i18n/
+│       │   │   ├── en.json
+│       │   │   └── th.json
+│       │   ├── pages/
+│       │   │   ├── __init__.py
+│       │   │   ├── activation_page.py
+│       │   │   ├── dashboard_page.py
+│       │   │   ├── devices_page.py
+│       │   │   ├── license_page.py
+│       │   │   ├── live_page.py
+│       │   │   ├── logs_page.py
+│       │   │   ├── news_page.py
+│       │   │   ├── settings_page.py
+│       │   │   ├── support_page.py
+│       │   │   └── updates_page.py
+│       │   ├── __init__.py
+│       │   ├── main_window.py
+│       │   └── theme.py
+│       ├── web/
+│       │   ├── routes/
+│       │   │   └── __init__.py
+│       │   ├── __init__.py
+│       │   ├── api.py
+│       │   ├── auth.py
+│       │   └── server.py
+│       ├── __init__.py
+│       ├── __main__.py
+│       └── app.py
+├── tests/
+│   └── unit/
+│       ├── test_backend_billing.py
+│       ├── test_backend_hardening.py
+│       ├── test_backend_security.py
+│       ├── test_device_identity.py
+│       ├── test_enterprise_security.py
+│       ├── test_security.py
+│       ├── test_settings.py
+│       └── test_toolchain.py
+├── .env.example
+├── .gitignore
+├── AUTO_BILLING_DEVICE_POLICY_REPORT_TH.md
+├── ENTERPRISE_SECURITY_UI_REPORT_TH.md
+├── ENTERPRISE_UPDATED_FILE_LIST.txt
+├── ENTERPRISE_UPDATED_FILE_TREE.txt
+├── legacy_migration_map.json
+├── LICENSE_UPDATE_REFACTOR_REPORT_TH.md
+├── pyproject.toml
+├── README.md
+├── SECURITY_REFACTOR_REPORT_TH.md
+├── SECURITY_UI_REFACTOR_REPORT_TH.md
+└── tools_manifest.json

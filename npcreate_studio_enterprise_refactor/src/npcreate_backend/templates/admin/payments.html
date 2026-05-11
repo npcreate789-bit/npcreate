@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>Payment / Billing</h1><p>รายการชำระเงินและสถานะจาก Gateway</p></div></div>
+<div class="card">
+  <form method="get" action="/admin/payments" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <select class="input" name="provider" style="width:180px;margin:0">
+      <option value="">ทุก Provider</option>
+      <option value="stripe" {% if filters.provider=='stripe' %}selected{% endif %}>stripe</option>
+      <option value="omise" {% if filters.provider=='omise' %}selected{% endif %}>omise</option>
+      <option value="2c2p" {% if filters.provider=='2c2p' %}selected{% endif %}>2c2p</option>
+      <option value="gbprimepay" {% if filters.provider=='gbprimepay' %}selected{% endif %}>gbprimepay</option>
+      <option value="manual" {% if filters.provider=='manual' %}selected{% endif %}>manual</option>
+    </select>
+    <select class="input" name="status_filter" style="width:160px;margin:0">
+      <option value="">ทุกสถานะ</option>
+      <option value="paid" {% if filters.status_filter=='paid' %}selected{% endif %}>paid</option>
+      <option value="failed" {% if filters.status_filter=='failed' %}selected{% endif %}>failed</option>
+    </select>
+    <button class="btn" type="submit">ค้นหา</button>
+  </form>
+  <table><tr><th>Provider</th><th>Status</th><th>Amount</th><th>Paid At</th><th>License</th><th>Payment ID</th></tr>{% for x in items %}<tr><td>{{x.provider}}</td><td><span class="pill {{'green' if x.status=='paid' else 'yellow'}}">{{x.status}}</span></td><td>{{x.amount_satangs/100}} {{x.currency}}</td><td>{{x.paid_at}}</td><td>{{x.license_id}}</td><td>{{x.provider_payment_id}}</td></tr>{% endfor %}</table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
+    <span>
+      {% if meta.has_prev %}<a class="btn secondary" href="?provider={{filters.provider}}&status_filter={{filters.status_filter}}&limit={{meta.limit}}&offset={{meta.prev_offset}}">ก่อนหน้า</a>{% endif %}
+      {% if meta.has_next %}<a class="btn" href="?provider={{filters.provider}}&status_filter={{filters.status_filter}}&limit={{meta.limit}}&offset={{meta.next_offset}}">ถัดไป</a>{% endif %}
+    </span>
+  </div>
+</div>
+{% endblock %}

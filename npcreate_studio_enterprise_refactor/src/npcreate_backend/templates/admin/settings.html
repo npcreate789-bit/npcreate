@@ -1,0 +1,5 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>Production Settings</h1><p>แสดงเฉพาะค่าที่ปลอดภัย ไม่แสดง secret</p></div></div>
+<div class="card"><table><tr><th>Key</th><th>Value</th></tr>{% for k,v in settings.items() %}<tr><td>{{k}}</td><td>{{v}}</td></tr>{% endfor %}</table></div>
+{% endblock %}

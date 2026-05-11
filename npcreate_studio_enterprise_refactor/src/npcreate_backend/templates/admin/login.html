@@ -1,0 +1,13 @@
+{% extends "admin/base.html" %}
+{% block body %}
+<div class="login card">
+  <div class="brand"><div class="logo">NP</div><div><strong>Admin Login</strong><br><span class="muted">Password + MFA</span></div></div>
+  {% if error %}<p class="danger">{{ error }}</p>{% endif %}
+  <form method="post" action="/admin/login">
+    <label>Email</label><input class="input" name="email" type="email" required autofocus>
+    <label>Password</label><input class="input" name="password" type="password" required>
+    <label>MFA Code</label><input class="input" name="mfa_code" inputmode="numeric" minlength="6" maxlength="6" required>
+    <button class="btn" type="submit" style="width:100%">เข้าสู่ระบบ</button>
+  </form>
+</div>
+{% endblock %}

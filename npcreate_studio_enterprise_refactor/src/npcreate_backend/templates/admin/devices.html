@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>Device Binding</h1><p>ตรวจอุปกรณ์ที่ผูกกับ License และคำขอปลดเครื่อง</p></div></div>
+<div class="card">
+  <form method="get" action="/admin/devices" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <input class="input" type="text" name="q" value="{{filters.q}}" placeholder="ค้นหา ชื่อเครื่อง / ลูกค้า / device_id" style="flex:1;min-width:240px;margin:0">
+    <select class="input" name="status_filter" style="width:140px;margin:0">
+      <option value="">ทุกสถานะ</option>
+      <option value="bound" {% if filters.status_filter=='bound' %}selected{% endif %}>bound</option>
+      <option value="released" {% if filters.status_filter=='released' %}selected{% endif %}>released</option>
+    </select>
+    <select class="input" name="device_type" style="width:140px;margin:0">
+      <option value="">ทุกชนิด</option>
+      <option value="pc" {% if filters.device_type=='pc' %}selected{% endif %}>pc</option>
+      <option value="phone" {% if filters.device_type=='phone' %}selected{% endif %}>phone</option>
+    </select>
+    <button class="btn" type="submit">ค้นหา</button>
+  </form>
+  <h2>อุปกรณ์ทั้งหมด</h2>
+  <table><tr><th>ลูกค้า</th><th>ชนิด</th><th>ชื่อเครื่อง</th><th>Status</th><th>ล่าสุด</th></tr>{% for x in items %}<tr><td>{{x.customer_name}}</td><td>{{x.device_type}}</td><td>{{x.label}}</td><td>{{x.status}}</td><td>{{x.last_seen_at or x.bound_at}}</td></tr>{% endfor %}</table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
+    <span>
+      {% if meta.has_prev %}<a class="btn secondary" href="?q={{filters.q}}&status_filter={{filters.status_filter}}&device_type={{filters.device_type}}&limit={{meta.limit}}&offset={{meta.prev_offset}}">ก่อนหน้า</a>{% endif %}
+      {% if meta.has_next %}<a class="btn" href="?q={{filters.q}}&status_filter={{filters.status_filter}}&device_type={{filters.device_type}}&limit={{meta.limit}}&offset={{meta.next_offset}}">ถัดไป</a>{% endif %}
+    </span>
+  </div>
+</div>
+<div class="section card"><h2>คำขอปลดเครื่อง (pending)</h2><table><tr><th>ลูกค้า</th><th>Device</th><th>เหตุผล</th><th>Status</th><th>วันที่ขอ</th></tr>{% for x in release_requests %}<tr><td>{{x.customer_name}}</td><td>{{x.device_type}} / {{x.label}}</td><td>{{x.reason}}</td><td>{{x.status}}</td><td>{{x.requested_at}}</td></tr>{% endfor %}</table></div>
+{% endblock %}
