@@ -11,6 +11,7 @@ from ..infrastructure.streaming_subprocess import StreamingPolicy, StreamingSubp
 from ..infrastructure.subprocess_runner import SubprocessRunner
 from ..infrastructure.toolchain import ToolchainResolver
 from ..services.adb_service import AdbService
+from ..services.device_profile_repository import load_combined as load_device_profile_library
 from ..services.health_monitor import HealthMonitor
 from ..services.license_client import LicenseClient
 from ..services.license_lifecycle import LicenseLifecycleService
@@ -76,11 +77,15 @@ class MainWindow:
             adb=adb,
             interval_s=2.0,
         )
+        device_profile_lib = load_device_profile_library(
+            user_path=self.settings.app_data_path / "device_profiles.json",
+        )
         self._services.update({
             "media_service": media,
             "adb_service": adb,
             "orchestrator": orchestrator,
             "health_monitor": health,
+            "device_profile_lib": device_profile_lib,
             "toast": self.toast,
             "settings": self.settings,
         })

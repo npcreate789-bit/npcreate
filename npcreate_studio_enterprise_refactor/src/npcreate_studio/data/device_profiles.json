@@ -1,0 +1,46 @@
+{
+  "profiles": [
+    {
+      "name": "Redmi 13C",
+      "model": "23100RN82L",
+      "soc_hint": "MT6769V/CU (Helio G85)",
+      "rotation_filter": "transpose=2,vflip",
+      "notes": "Confirmed against UltimateRerun reference profiles"
+    },
+    {
+      "name": "Redmi 14C",
+      "model": "Redmi 14C",
+      "soc_hint": "",
+      "rotation_filter": "transpose=2,vflip",
+      "notes": "Same as 13C / Poco C75"
+    },
+    {
+      "name": "Poco C75",
+      "model": "Poco C75",
+      "soc_hint": "",
+      "rotation_filter": "transpose=2,vflip",
+      "notes": "Confirmed"
+    },
+    {
+      "name": "Redmi 15C",
+      "model": "25078RA3EA",
+      "soc_hint": "",
+      "rotation_filter": "transpose=1",
+      "notes": "Try transpose=1 first (untested)"
+    },
+    {
+      "name": "Generic / unknown",
+      "model": "generic",
+      "soc_hint": "",
+      "rotation_filter": "",
+      "notes": "ใช้ก่อนถ้ายังไม่รู้รุ่น แล้วค่อยปรับ rotation_filter ถ้าภาพหมุน"
+    },
+    {
+      "name": "Test (no rotation)",
+      "model": "test",
+      "soc_hint": "",
+      "rotation_filter": "",
+      "notes": "ใช้กับ ffplay tcp://localhost:8888 เพื่อตรวจสอบ pipeline"
+    }
+  ]
+}

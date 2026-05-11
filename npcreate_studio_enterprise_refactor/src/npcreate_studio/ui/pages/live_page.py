@@ -73,7 +73,7 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
     subtle_button(ctk, pl_inner, "Browse…", command=_on_browse).pack(side="left")
 
     profile_var = StringVar(value="720x1280 30fps · 2 Mbps")
-    ctk.CTkLabel(inputs, text="Profile", text_color=theme.TEXT_MUTED).pack(anchor="w", padx=18, pady=(8, 4))
+    ctk.CTkLabel(inputs, text="Encode preset", text_color=theme.TEXT_MUTED).pack(anchor="w", padx=18, pady=(8, 4))
     ctk.CTkOptionMenu(
         inputs,
         values=[
@@ -82,6 +82,17 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
             "1080x1920 30fps · 4 Mbps",
         ],
         variable=profile_var,
+        corner_radius=10,
+    ).pack(anchor="w", padx=18, pady=(0, 8))
+
+    device_profile_lib = services.get("device_profile_lib")
+    device_profile_names = device_profile_lib.names() if device_profile_lib is not None else ["Generic / unknown"]
+    device_profile_var = StringVar(value=device_profile_names[0])
+    ctk.CTkLabel(inputs, text="Device profile (rotation filter)", text_color=theme.TEXT_MUTED).pack(anchor="w", padx=18, pady=(4, 4))
+    ctk.CTkOptionMenu(
+        inputs,
+        values=device_profile_names,
+        variable=device_profile_var,
         corner_radius=10,
     ).pack(anchor="w", padx=18, pady=(0, 14))
 
@@ -153,11 +164,16 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
     # ── action handlers ───────────────────────────────────────────────
     def _resolved_profile() -> StreamProfile:
         pick = profile_var.get()
+        rotation = ""
+        if device_profile_lib is not None:
+            chosen = device_profile_lib.get(device_profile_var.get())
+            if chosen is not None:
+                rotation = chosen.rotation_filter
         if "540x960" in pick:
-            return StreamProfile(width=540, height=960, fps=30, video_bitrate="1500k", video_maxrate="1800k", video_bufsize="3000k")
+            return StreamProfile(width=540, height=960, fps=30, video_bitrate="1500k", video_maxrate="1800k", video_bufsize="3000k", rotation_filter=rotation)
         if "1080x1920" in pick:
-            return StreamProfile(width=1080, height=1920, fps=30, video_bitrate="4000k", video_maxrate="5000k", video_bufsize="8000k")
-        return StreamProfile()
+            return StreamProfile(width=1080, height=1920, fps=30, video_bitrate="4000k", video_maxrate="5000k", video_bufsize="8000k", rotation_filter=rotation)
+        return StreamProfile(rotation_filter=rotation)
 
     def _notify(msg: str, kind: str) -> None:
         if toast is not None:
