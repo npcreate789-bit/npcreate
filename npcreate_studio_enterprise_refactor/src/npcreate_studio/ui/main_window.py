@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from collections.abc import Callable
 from typing import Any
 
 from ..core.settings import Settings
 from ..infrastructure.secure_store import SecureStore
+from ..infrastructure.streaming_subprocess import StreamingPolicy, StreamingSubprocess
+from ..infrastructure.subprocess_runner import SubprocessRunner
+from ..infrastructure.toolchain import ToolchainResolver
+from ..services.adb_service import AdbService
+from ..services.health_monitor import HealthMonitor
 from ..services.license_client import LicenseClient
 from ..services.license_lifecycle import LicenseLifecycleService
+from ..services.media_service import MediaService
+from ..services.streaming_orchestrator import StreamingOrchestrator
 from . import theme
 from .components.toast import ToastManager
 
@@ -48,8 +56,50 @@ class MainWindow:
             client = LicenseClient(base_url=self.settings.license_server_url, app_version=self.settings.app_version)
             store = SecureStore(self.settings.app_data_path)
             self._services["lifecycle"] = LicenseLifecycleService(client=client, store=store)
-        self._services["toast"] = self.toast
-        self._services["settings"] = self.settings
+
+        # Streaming + ADB stack (Phase A1–A3). Falls back to PATH for ffmpeg/adb
+        # in dev when vendor/ is empty; production builds rely on tools_manifest.
+        runner = SubprocessRunner()
+        tools = ToolchainResolver(root=self.settings.tool_root_path, manifest_path=self.settings.tools_manifest_path)
+        media = MediaService(tools=tools, runner=runner)
+        adb = AdbService(tools=tools, runner=runner)
+        ffmpeg_path = shutil.which("ffmpeg")
+        streaming_policy = StreamingPolicy(allowed_names=frozenset({"ffmpeg", "ffmpeg.exe"}))
+        orchestrator = StreamingOrchestrator(
+            settings=self.settings,
+            media=media,
+            subprocess=StreamingSubprocess(streaming_policy),
+            ffmpeg_path=ffmpeg_path,
+        )
+        health = HealthMonitor(
+            stats_provider=lambda: orchestrator.stats,
+            adb=adb,
+            interval_s=2.0,
+        )
+        self._services.update({
+            "media_service": media,
+            "adb_service": adb,
+            "orchestrator": orchestrator,
+            "health_monitor": health,
+            "toast": self.toast,
+            "settings": self.settings,
+        })
+
+        # Graceful shutdown — stop streaming + health when the window closes.
+        def _on_close() -> None:
+            try:
+                if orchestrator.is_running():
+                    orchestrator.stop()
+            except Exception:
+                log.exception("orchestrator stop on close failed")
+            try:
+                if health.is_running():
+                    health.stop()
+            except Exception:
+                log.exception("health stop on close failed")
+            root.destroy()
+
+        root.protocol("WM_DELETE_WINDOW", _on_close)
 
         shell = ctk.CTkFrame(root, fg_color=theme.BACKGROUND)
         shell.pack(fill="both", expand=True)
@@ -80,6 +130,7 @@ class MainWindow:
         nav: list[tuple[str, str]] = [
             ("dashboard", "ภาพรวมระบบ"),
             ("license", "License"),
+            ("live", "Live Streaming"),
             ("devices", "ผูกอุปกรณ์"),
             ("updates", "อัปเดตโปรแกรม"),
             ("news", "ข่าวสาร"),
@@ -122,6 +173,7 @@ class MainWindow:
         page_builders: dict[str, Callable] = {
             "dashboard": self._load_page("dashboard_page"),
             "license": self._load_page("license_page"),
+            "live": self._load_page("live_page"),
             "devices": self._load_page("devices_page"),
             "updates": self._load_page("updates_page"),
             "news": self._load_page("news_page"),
