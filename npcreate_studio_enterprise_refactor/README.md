@@ -123,3 +123,47 @@ Production PostgreSQL:
 ```bash
 set NPCREATE_BACKEND_DATABASE_URL=postgresql://npcreate:STRONG_PASSWORD@db.example.com:5432/npcreate
 ```
+
+## Version 2.6.0: Client Stack Feature Parity
+
+ปิด gap ฝั่ง client ทั้งหมดเทียบกับ legacy `livemobillrerun` —
+สตรีมวิดีโอผ่าน FFmpeg → 1-client TCP server → adb reverse → โทรศัพท์,
+ปุ่ม TikTok Live Screen-Share 1 คลิก, Per-device rotation presets,
+scrcpy mirror, RTMP push, signed self-update + atomic rollback,
+และ portable state backup/restore — ครบทุก workflow
+
+รายละเอียดทั้งหมด: `RELEASE_NOTES_v2.6.0.md`
+
+ฝั่ง Android receiver แยกเป็น repo พี่น้องที่
+`../npcreate_studio_android/` (Kotlin, package
+`com.npcreate.studio.receiver`) — โปรโตคอลสื่อสาร (raw H.264 Annex-B
+ผ่าน `adb reverse tcp:8888`, YUV file ที่
+`/data/data/com.npcreate.studio.receiver/files/vcam.yuv`) เอกสาร
+อยู่ใน README ของ repo นั้น
+
+หน้าหลักที่เพิ่มใน Client GUI:
+
+- **เริ่มต้น (Onboarding)** — wizard 5 ขั้น (License → Activate →
+  เลือกอุปกรณ์ → Bridge → Ready) — first-run จะถูก redirect มาที่นี่อัตโนมัติ
+- **Live Streaming** — เลือก source video, เริ่ม FFmpeg + TCP server,
+  ดู stall watchdog (8 วินาที), 🎬 ปุ่ม TikTok 1 คลิก
+- **Stream (RTMP)** — push ไป ingest URL ภายนอก (TikTok / YouTube)
+  โดยไม่ต้องผ่านโทรศัพท์
+- **ผูกอุปกรณ์** — แสดง devices ที่ผ่าน adb authorization
+  พร้อมปุ่ม 🪞 Mirror ต่อ row
+- **Device Profiles** — CRUD editor สำหรับ rotation presets ต่อรุ่นโทรศัพท์
+- **อัปเดตโปรแกรม** — Background poller + manual check, ตรวจ Ed25519
+  signature ก่อน apply, atomic swap พร้อม rollback
+- **Backup / Restore** — สำรอง `device_profiles.json` +
+  `client_state.json` เป็น ZIP, preview manifest ก่อน restore
+
+Suite: **416 unit tests + 4 Postgres integration** ผ่านบน Python
+3.11 / 3.12 / 3.13
+
+ฝั่ง Android setup:
+
+```bash
+cd ../npcreate_studio_android
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
+```
