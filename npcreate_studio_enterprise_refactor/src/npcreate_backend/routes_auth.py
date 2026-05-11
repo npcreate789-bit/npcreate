@@ -68,8 +68,8 @@ def login_submit(
     csrf = csrf_token()
     conn.execute(
         """
-        INSERT INTO admin_sessions(session_id, admin_id, session_hash, csrf_token, ip_address, user_agent, created_at, expires_at)
-        VALUES(?,?,?,?,?,?,?,?)
+        INSERT INTO admin_sessions(session_id, admin_id, session_hash, csrf_token, ip_address, user_agent, created_at, expires_at, last_activity_at)
+        VALUES(?,?,?,?,?,?,?,?,?)
         """,
         (
             session_id,
@@ -80,6 +80,7 @@ def login_submit(
             request.headers.get("user-agent", "")[:250],
             iso(now),
             session_expiry(settings.admin_session_ttl_minutes),
+            iso(now),
         ),
     )
     conn.execute("UPDATE admin_users SET failed_login_count=0, locked_until=NULL, last_login_at=?, updated_at=? WHERE admin_id=?", (iso(now), iso(now), user["admin_id"]))

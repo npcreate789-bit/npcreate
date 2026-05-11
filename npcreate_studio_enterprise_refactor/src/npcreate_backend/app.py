@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
 from .db import connect, migrate
 from .jobs import billing_job_loop
@@ -42,7 +43,19 @@ def create_app() -> FastAPI:
             asyncio.create_task(billing_job_loop(settings))
 
     @app.get("/healthz")
-    def healthz() -> dict[str, str]:
-        return {"ok": "true", "service": "npcreate-backend"}
+    def healthz() -> JSONResponse:
+        """Readiness probe — succeeds only when the DB is reachable."""
+        try:
+            conn = connect(settings.db_target)
+            try:
+                conn.execute("SELECT 1").fetchone()
+            finally:
+                conn.close()
+        except Exception as exc:
+            return JSONResponse(
+                status_code=503,
+                content={"ok": False, "service": "npcreate-backend", "db": "down", "error": str(exc)[:200]},
+            )
+        return JSONResponse(content={"ok": True, "service": "npcreate-backend", "db": "ok"})
 
     return app

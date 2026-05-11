@@ -41,7 +41,9 @@ class BackendSettings(BaseSettings):
     # Admin web security. Create the first admin with scripts/admin_create_user.py.
     admin_session_cookie_name: str = Field(default="npc_admin_session")
     admin_session_ttl_minutes: int = Field(default=480, ge=15, le=1440)
+    admin_session_idle_timeout_minutes: int = Field(default=30, ge=1, le=480)
     admin_login_rate_limit_per_minute: int = Field(default=8, ge=1, le=60)
+    auth_refresh_rate_limit_per_minute: int = Field(default=30, ge=1, le=300)
     allow_legacy_admin_token: bool = Field(default=False)
 
     # Background billing job.

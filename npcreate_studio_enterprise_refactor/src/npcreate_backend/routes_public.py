@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
-from .auth import get_activation_claims, get_settings, rate_limit_activation, require_app_api_key
+from .auth import get_activation_claims, get_settings, rate_limit_activation, rate_limit_refresh, require_app_api_key
 from .billing import count_bound_devices, get_policy_for_device, process_payment_webhook
 from .db import all_rows, connect, migrate, one
 from .models import (
@@ -126,7 +126,7 @@ def activate_license(
     )
 
 
-@router.post("/auth/refresh", response_model=RefreshTokenResponse)
+@router.post("/auth/refresh", response_model=RefreshTokenResponse, dependencies=[Depends(rate_limit_refresh)])
 def refresh_activation_token(req: RefreshTokenRequest, settings: Annotated[BackendSettings, Depends(get_settings)]):
     conn = connect(settings.db_target)
     migrate(conn)

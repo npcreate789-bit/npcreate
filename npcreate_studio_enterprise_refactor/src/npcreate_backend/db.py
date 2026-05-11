@@ -294,6 +294,7 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
     user_agent TEXT DEFAULT '',
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
+    last_activity_at TEXT,
     revoked_at TEXT
 );
 
@@ -377,6 +378,7 @@ def migrate(conn: sqlite3.Connection | PgConnection) -> None:
     conn.executescript(SQLITE_SCHEMA)
     _add_column_if_missing(conn, "subscriptions", "grace_until", "TEXT")
     _add_column_if_missing(conn, "admin_users", "role", "TEXT NOT NULL DEFAULT 'admin'")
+    _add_column_if_missing(conn, "admin_sessions", "last_activity_at", "TEXT")
     if isinstance(conn, PgConnection):
         conn.execute("INSERT INTO schema_migrations(version) VALUES (?) ON CONFLICT (version) DO NOTHING", (SCHEMA_VERSION,))
     else:

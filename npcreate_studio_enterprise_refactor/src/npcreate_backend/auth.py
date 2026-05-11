@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import Cookie, Depends, Header, HTTPException, Request, status
@@ -9,7 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .admin_security import hash_session_token
 from .db import connect, migrate, one
-from .security import constant_time_equal, parse_dt, utcnow, verify_token
+from .security import constant_time_equal, iso, parse_dt, utcnow, verify_token
 from .settings import BackendSettings
 
 CSRF_HEADER = "X-CSRF-Token"
@@ -53,6 +54,10 @@ def rate_limit_admin_login(request: Request, settings: Annotated[BackendSettings
     _rate_limit(f"admin_login:{_client_ip(request, settings)}", settings.admin_login_rate_limit_per_minute)
 
 
+def rate_limit_refresh(request: Request, settings: Annotated[BackendSettings, Depends(get_settings)]) -> None:
+    _rate_limit(f"auth_refresh:{_client_ip(request, settings)}", settings.auth_refresh_rate_limit_per_minute)
+
+
 def get_admin_session(
     request: Request,
     settings: Annotated[BackendSettings, Depends(get_settings)],
@@ -76,8 +81,17 @@ def get_admin_session(
     )
     if not row:
         return None
-    if parse_dt(row["expires_at"]) < utcnow() or row["user_status"] != "active":
+    now = utcnow()
+    if parse_dt(row["expires_at"]) < now or row["user_status"] != "active":
         return None
+    # Idle timeout: reject if the session has been inactive longer than configured.
+    last_activity = parse_dt(row["last_activity_at"]) if "last_activity_at" in row.keys() else None
+    idle_limit = timedelta(minutes=settings.admin_session_idle_timeout_minutes)
+    if last_activity is not None and (now - last_activity) > idle_limit:
+        return None
+    # Sliding refresh: update last_activity_at on every authenticated lookup.
+    conn.execute("UPDATE admin_sessions SET last_activity_at=? WHERE session_hash=?", (iso(now), hash_session_token(token)))
+    conn.commit()
     return dict(row)
 
 
