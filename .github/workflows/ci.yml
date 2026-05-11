@@ -4,20 +4,21 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/**"
-      - "tests/**"
-      - "scripts/**"
-      - "pyproject.toml"
-      - "requirements*.txt"
+      - "npcreate_studio_enterprise_refactor/src/**"
+      - "npcreate_studio_enterprise_refactor/tests/**"
+      - "npcreate_studio_enterprise_refactor/scripts/**"
+      - "npcreate_studio_enterprise_refactor/pyproject.toml"
+      - "npcreate_studio_enterprise_refactor/requirements*.txt"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
-      - "src/**"
-      - "tests/**"
-      - "scripts/**"
-      - "pyproject.toml"
-      - "requirements*.txt"
+      - "npcreate_studio_enterprise_refactor/src/**"
+      - "npcreate_studio_enterprise_refactor/tests/**"
+      - "npcreate_studio_enterprise_refactor/scripts/**"
+      - "npcreate_studio_enterprise_refactor/pyproject.toml"
+      - "npcreate_studio_enterprise_refactor/requirements*.txt"
       - ".github/workflows/ci.yml"
+  workflow_dispatch:
 
 defaults:
   run:
