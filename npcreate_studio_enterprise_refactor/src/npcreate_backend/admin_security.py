@@ -76,3 +76,27 @@ def csrf_token() -> str:
 def otpauth_uri(*, issuer: str, email: str, secret: str) -> str:
     label = f"{issuer}:{email}"
     return f"otpauth://totp/{label}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
+
+
+# --- MFA backup codes -----------------------------------------------------
+
+BACKUP_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+BACKUP_CODE_GROUPS = (4, 4, 4)  # produces e.g. "ABCD-1234-WXYZ"
+
+
+def normalize_backup_code(code: str) -> str:
+    """Strip dashes/spaces and uppercase so user input matches the stored hash."""
+    return "".join(ch for ch in code.upper() if ch.isalnum())
+
+
+def generate_backup_codes(count: int = 8) -> list[str]:
+    """Return human-readable single-use backup codes for MFA fallback."""
+    codes: list[str] = []
+    for _ in range(count):
+        groups = ["".join(secrets.choice(BACKUP_CODE_ALPHABET) for _ in range(n)) for n in BACKUP_CODE_GROUPS]
+        codes.append("-".join(groups))
+    return codes
+
+
+def hash_backup_code(code: str) -> str:
+    return hashlib.sha256(normalize_backup_code(code).encode("utf-8")).hexdigest()

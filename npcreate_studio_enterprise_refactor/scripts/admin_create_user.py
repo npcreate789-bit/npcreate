@@ -3,7 +3,13 @@ from __future__ import annotations
 import argparse
 import secrets
 
-from npcreate_backend.admin_security import hash_password, new_mfa_secret, otpauth_uri
+from npcreate_backend.admin_security import (
+    generate_backup_codes,
+    hash_backup_code,
+    hash_password,
+    new_mfa_secret,
+    otpauth_uri,
+)
 from npcreate_backend.auth import VALID_ROLES
 from npcreate_backend.db import connect, migrate
 from npcreate_backend.security import iso, utcnow
@@ -33,10 +39,21 @@ def main() -> None:
         """,
         (admin_id, args.email.strip().lower(), args.name, hash_password(args.password), secret, 1, args.role, "active", now, now),
     )
+    backup_codes = generate_backup_codes(8)
+    for code in backup_codes:
+        code_id = "bc_" + secrets.token_urlsafe(12)
+        conn.execute(
+            "INSERT INTO admin_backup_codes(code_id, admin_id, code_hash, created_at) VALUES(?,?,?,?)",
+            (code_id, admin_id, hash_backup_code(code), now),
+        )
     conn.commit()
     print("Admin created:", args.email, "role:", args.role)
     print("MFA secret:", secret)
     print("Authenticator URI:", otpauth_uri(issuer="NP Create", email=args.email.strip().lower(), secret=secret))
+    print()
+    print("Backup codes (เก็บไว้ที่ปลอดภัย — ใช้ครั้งเดียวต่อโค้ด ทดแทน TOTP):")
+    for code in backup_codes:
+        print("  -", code)
 
 
 if __name__ == "__main__":

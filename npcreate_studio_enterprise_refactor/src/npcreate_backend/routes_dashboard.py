@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from .auth import get_settings, require_admin, require_role
+from .auth import get_settings, require_admin, require_role, verify_admin_csrf
 from .billing import audit_log, create_subscription, default_device_policies, upsert_device_policies
 from .db import all_rows, connect, migrate, one
 from .observability import log_event
@@ -487,6 +487,88 @@ def create_subscription_form(
     conn.commit()
     log_event("subscription.created", admin_id=session["admin_id"], license_id=license_id, provider=provider, subscription_id=sub_id)
     return RedirectResponse("/admin/licenses", status_code=303)
+
+
+@router.get("/account", response_class=HTMLResponse)
+def account_page(
+    request: Request,
+    settings: Annotated[BackendSettings, Depends(get_settings)],
+    session: Annotated[dict[str, Any], Depends(require_admin)],
+):
+    conn = connect(settings.db_target)
+    migrate(conn)
+    admin_id = session["admin_id"]
+    user = one(conn, "SELECT email, display_name, role, last_login_at FROM admin_users WHERE admin_id=?", (admin_id,))
+    counts = one(
+        conn,
+        "SELECT COUNT(*) AS total, SUM(CASE WHEN used_at IS NULL THEN 1 ELSE 0 END) AS unused FROM admin_backup_codes WHERE admin_id=?",
+        (admin_id,),
+    )
+    return templates.TemplateResponse(
+        request,
+        "admin/account.html",
+        _common_context(
+            session,
+            account=dict(user) if user else {},
+            backup_codes_unused=int(counts["unused"] or 0) if counts else 0,
+            backup_codes_total=int(counts["total"] or 0) if counts else 0,
+            new_codes=request.query_params.getlist("new"),
+            page="account",
+        ),
+    )
+
+
+@router.post("/account/change-password")
+def change_password_form(
+    request: Request,
+    settings: Annotated[BackendSettings, Depends(get_settings)],
+    session: Annotated[dict[str, Any], Depends(verify_admin_csrf)],
+    current_password: Annotated[str, Form()],
+    new_password: Annotated[str, Form(min_length=12, max_length=200)],
+):
+    from .admin_security import hash_password, verify_password
+
+    conn = connect(settings.db_target)
+    migrate(conn)
+    admin_id = session["admin_id"]
+    user = one(conn, "SELECT password_hash FROM admin_users WHERE admin_id=?", (admin_id,))
+    if not user or not verify_password(user["password_hash"], current_password):
+        log_event("admin.login_failed", admin_id=admin_id, reason="bad_current_password_on_change")
+        raise HTTPException(status_code=403, detail="current password incorrect")
+    conn.execute(
+        "UPDATE admin_users SET password_hash=?, updated_at=? WHERE admin_id=?",
+        (hash_password(new_password), iso(utcnow()), admin_id),
+    )
+    audit_log(conn, actor_type="admin", actor_id=admin_id, action="admin.password_changed", target_type="admin_user", target_id=admin_id)
+    conn.commit()
+    return RedirectResponse("/admin/account", status_code=303)
+
+
+@router.post("/account/regenerate-backup-codes")
+def regenerate_backup_codes_form(
+    request: Request,
+    settings: Annotated[BackendSettings, Depends(get_settings)],
+    session: Annotated[dict[str, Any], Depends(verify_admin_csrf)],
+):
+    from .admin_security import generate_backup_codes, hash_backup_code
+
+    conn = connect(settings.db_target)
+    migrate(conn)
+    admin_id = session["admin_id"]
+    conn.execute("DELETE FROM admin_backup_codes WHERE admin_id=?", (admin_id,))
+    new_codes = generate_backup_codes(8)
+    now = iso(utcnow())
+    for code in new_codes:
+        code_id = "bc_" + secrets.token_urlsafe(12)
+        conn.execute(
+            "INSERT INTO admin_backup_codes(code_id, admin_id, code_hash, created_at) VALUES(?,?,?,?)",
+            (code_id, admin_id, hash_backup_code(code), now),
+        )
+    audit_log(conn, actor_type="admin", actor_id=admin_id, action="admin.backup_codes_regenerated", target_type="admin_user", target_id=admin_id, metadata={"count": len(new_codes)})
+    conn.commit()
+    # Codes are shown once via query string then disappear on next refresh.
+    query = "&".join(f"new={code}" for code in new_codes)
+    return RedirectResponse(f"/admin/account?{query}", status_code=303)
 
 
 @router.get("/settings", response_class=HTMLResponse)

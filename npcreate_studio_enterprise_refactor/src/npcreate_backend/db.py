@@ -298,6 +298,14 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
     revoked_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS admin_backup_codes (
+    code_id TEXT PRIMARY KEY,
+    admin_id TEXT NOT NULL REFERENCES admin_users(admin_id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    used_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     token_id TEXT PRIMARY KEY,
     token_hash TEXT NOT NULL UNIQUE,
@@ -334,6 +342,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_events_status ON payment_events(processin
 CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_hash ON admin_sessions(session_hash, expires_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_device ON refresh_tokens(device_id, revoked_at);
+CREATE INDEX IF NOT EXISTS idx_admin_backup_codes_admin ON admin_backup_codes(admin_id, used_at);
 CREATE INDEX IF NOT EXISTS idx_error_reports_status ON error_reports(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_news_active_pub ON news(is_active, published_at);
 CREATE INDEX IF NOT EXISTS idx_updates_channel_active ON update_manifests(channel, is_active, published_at);

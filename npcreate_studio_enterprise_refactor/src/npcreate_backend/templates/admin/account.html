@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>บัญชี Admin</h1><p>เปลี่ยนรหัสผ่านและจัดการ Backup Codes สำหรับ MFA</p></div></div>
+
+{% if new_codes %}
+<div class="card" style="background:#0a2818;border-color:#16a34a">
+  <strong style="color:#bbf7d0">Backup Codes ชุดใหม่ (แสดงครั้งเดียว — เก็บไว้ที่ปลอดภัย):</strong>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;font-family:monospace;font-size:16px">
+    {% for code in new_codes %}<div style="background:#172033;padding:8px 14px;border-radius:8px;color:#fbbf24;user-select:all">{{code}}</div>{% endfor %}
+  </div>
+  <p class="muted" style="margin-top:12px">ใช้แทนรหัส 6 หลักจาก authenticator ได้เมื่อสำรอง — แต่ละโค้ดใช้ได้ครั้งเดียว</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0">ข้อมูลบัญชี</h2>
+  <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 24px;font-size:14px">
+    <span class="muted">Email</span><span>{{ account.email }}</span>
+    <span class="muted">ชื่อแสดงผล</span><span>{{ account.display_name or '—' }}</span>
+    <span class="muted">Role</span><span><span class="pill blue">{{ account.role }}</span></span>
+    <span class="muted">Login ล่าสุด</span><span>{{ account.last_login_at or '—' }}</span>
+    <span class="muted">Backup codes</span><span>{{ backup_codes_unused }} จาก {{ backup_codes_total }} ยังใช้ได้</span>
+  </div>
+</div>
+
+<div class="card section">
+  <h2>เปลี่ยนรหัสผ่าน</h2>
+  <form method="post" action="/admin/account/change-password" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:560px">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <div style="grid-column:1/-1"><label class="muted" style="font-size:12px">รหัสผ่านปัจจุบัน *</label><input class="input" name="current_password" type="password" required style="margin:0"></div>
+    <div style="grid-column:1/-1"><label class="muted" style="font-size:12px">รหัสผ่านใหม่ (อย่างน้อย 12 ตัว) *</label><input class="input" name="new_password" type="password" minlength="12" required style="margin:0"></div>
+    <div><button class="btn" type="submit">บันทึก</button></div>
+  </form>
+</div>
+
+<div class="card section">
+  <h2>Backup Codes</h2>
+  <p class="muted">หากทำ TOTP seed สูญหาย ใช้ backup code แทนได้ครั้งเดียว ต่อโค้ด เพื่อความปลอดภัย ระบบจะลบโค้ดเก่าทั้งหมดและออกชุดใหม่</p>
+  <form method="post" action="/admin/account/regenerate-backup-codes" onsubmit="return confirm('ยกเลิก backup codes เดิมและออกชุดใหม่?')">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <button class="btn secondary" type="submit">ออก Backup Codes ใหม่</button>
+  </form>
+</div>
+{% endblock %}

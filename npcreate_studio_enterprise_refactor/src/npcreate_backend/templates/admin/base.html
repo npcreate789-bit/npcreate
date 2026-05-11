@@ -24,6 +24,7 @@
       <a class="{{'active' if page=='updates' else ''}}" href="/admin/updates">Updates</a>
       <a class="{{'active' if page=='logs' else ''}}" href="/admin/logs">Logs / Error</a>
       <a class="{{'active' if page=='settings' else ''}}" href="/admin/settings">Settings</a>
+      <a class="{{'active' if page=='account' else ''}}" href="/admin/account">บัญชีของฉัน</a>
     </nav>
     <form method="post" action="/admin/logout" style="margin-top:24px"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button class="btn secondary" type="submit">ออกจากระบบ</button></form>
   </aside>

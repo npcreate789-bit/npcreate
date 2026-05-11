@@ -7,7 +7,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from .admin_security import csrf_token, hash_session_token, new_session_token, session_expiry, verify_password, verify_totp
+from .admin_security import (
+    csrf_token,
+    hash_backup_code,
+    hash_session_token,
+    new_session_token,
+    session_expiry,
+    verify_password,
+    verify_totp,
+)
 from .auth import get_admin_session, get_settings, rate_limit_admin_login, verify_admin_csrf
 from .billing import audit_log
 from .db import connect, migrate, one
@@ -44,7 +52,24 @@ def login_submit(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid admin credentials")
     if user["locked_until"] and parse_dt(user["locked_until"]) > now:
         raise HTTPException(status_code=status.HTTP_423_LOCKED, detail="admin account locked temporarily")
-    if not verify_password(user["password_hash"], password) or (user["mfa_enabled"] and not verify_totp(user["mfa_secret"], mfa_code)):
+    password_ok = verify_password(user["password_hash"], password)
+    used_backup_code_id: str | None = None
+    mfa_ok = not user["mfa_enabled"]
+    if user["mfa_enabled"]:
+        if verify_totp(user["mfa_secret"], mfa_code):
+            mfa_ok = True
+        else:
+            # Accept a one-time backup code as an MFA fallback. Consume it on success.
+            row = one(
+                conn,
+                "SELECT code_id FROM admin_backup_codes WHERE admin_id=? AND code_hash=? AND used_at IS NULL",
+                (user["admin_id"], hash_backup_code(mfa_code)),
+            )
+            if row:
+                mfa_ok = True
+                used_backup_code_id = row["code_id"]
+
+    if not password_ok or not mfa_ok:
         import logging
         failed = int(user["failed_login_count"] or 0) + 1
         locked_until = iso(now + timedelta(minutes=15)) if failed >= 5 else None
@@ -62,6 +87,13 @@ def login_submit(
             locked_until=locked_until,
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid admin credentials")
+
+    if used_backup_code_id:
+        conn.execute(
+            "UPDATE admin_backup_codes SET used_at=? WHERE code_id=?",
+            (iso(now), used_backup_code_id),
+        )
+        audit_log(conn, actor_type="admin", actor_id=user["admin_id"], action="admin.backup_code_used", target_type="admin_user", target_id=user["admin_id"])
 
     raw_session = new_session_token()
     session_id = "as_" + secrets.token_urlsafe(18)
