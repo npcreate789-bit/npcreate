@@ -15,7 +15,9 @@ backend_data/
 vendor/
 dist/
 build/
+# PyInstaller auto-generated specs — but allow our hand-rolled build spec.
 *.spec
+!build_macos_app.spec
 .coverage
 htmlcov/
 .mypy_cache/
