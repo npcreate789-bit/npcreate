@@ -55,6 +55,15 @@ class AdbService:
         argv += list(args)
         return self.runner.run(argv, timeout=timeout)
 
+    def exec_argv(self, *args: str, serial: str | None = None, timeout: float = 10.0):
+        """Public alias for the low-level argv runner.
+
+        Use this when you need the full ``CommandResult`` (rc + stdout +
+        stderr) for an arbitrary ``adb`` invocation. For shell convenience
+        that just returns trimmed stdout, prefer :meth:`shell` instead.
+        """
+        return self._run(*args, serial=serial, timeout=timeout)
+
     # -- availability + lifecycle -----------------------------------------
 
     def is_available(self) -> bool:
