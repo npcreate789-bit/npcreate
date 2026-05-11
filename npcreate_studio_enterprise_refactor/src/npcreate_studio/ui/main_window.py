@@ -20,6 +20,8 @@ from ..services.mirror_service import MirrorService
 from ..services.rtmp_stream_service import RtmpStreamService
 from ..services.streaming_orchestrator import StreamingOrchestrator
 from ..services.tiktok_automation import TikTokAutomation
+from ..services.update_client import UpdateClient
+from ..services.update_orchestrator import UpdateOrchestrator
 from . import theme
 from .components.toast import ToastManager
 
@@ -81,6 +83,32 @@ def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
         ffmpeg_path=ffmpeg_path,
     )
 
+    # Phase E1 — background update poller. Only assembled when both the
+    # license server URL and the vendor public key are configured; otherwise
+    # the UI's "Check for updates" button stays disabled.
+    update_orch: UpdateOrchestrator | None = None
+    if settings.license_server_url and settings.vendor_public_key_hex:
+        update_client = UpdateClient(
+            base_url=settings.license_server_url,
+            app_version=settings.app_version,
+            channel=settings.update_channel,
+            public_key_hex=settings.vendor_public_key_hex,
+        )
+
+        lifecycle = services.get("lifecycle")
+
+        def _token_provider() -> str | None:
+            if lifecycle is None:
+                return None
+            tokens = lifecycle.store.get_tokens()
+            return tokens.get("access_token") if tokens else None
+
+        update_orch = UpdateOrchestrator(
+            client=update_client,
+            current_version=settings.app_version,
+            token_provider=_token_provider,
+        )
+
     services.update({
         "media_service": media,
         "adb_service": adb,
@@ -90,6 +118,7 @@ def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
         "tiktok_automation": tiktok,
         "mirror_service": mirror,
         "rtmp_service": rtmp_service,
+        "update_orchestrator": update_orch,
         "toast": toast,
         "settings": settings,
     })
@@ -130,8 +159,23 @@ class MainWindow:
         health = self._services["health_monitor"]
         mirror = self._services["mirror_service"]
         rtmp = self._services["rtmp_service"]
+        update_orch = self._services.get("update_orchestrator")
 
-        # Graceful shutdown — stop streaming + health + mirror + RTMP on close.
+        # Phase E1 — start background update poll. Toast on a new version.
+        if update_orch is not None:
+            def _on_update_available(manifest) -> None:
+                if self.toast is not None:
+                    root.after(
+                        0,
+                        lambda: self.toast.show(
+                            f"อัปเดตใหม่พร้อมใช้งาน v{manifest.version} — ไปที่หน้า 'อัปเดตโปรแกรม'",
+                            kind="info",
+                        ),
+                    )
+
+            update_orch.start_polling(_on_update_available)
+
+        # Graceful shutdown — stop streaming + health + mirror + RTMP + poller.
         def _on_close() -> None:
             try:
                 if orchestrator.is_running():
@@ -152,6 +196,11 @@ class MainWindow:
                     rtmp.stop()
             except Exception:
                 log.exception("rtmp stop on close failed")
+            if update_orch is not None:
+                try:
+                    update_orch.stop_polling()
+                except Exception:
+                    log.exception("update poller stop on close failed")
             root.destroy()
 
         root.protocol("WM_DELETE_WINDOW", _on_close)
