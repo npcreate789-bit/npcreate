@@ -24,8 +24,19 @@ class MediaService:
         self.tools = tools
         self.runner = runner
 
+    def _require(self, name: str) -> str:
+        """Resolve a tool via manifest, fall back to PATH, raise with an
+        operator-friendly hint when neither succeeds."""
+        p = self.tools.resolve_or_path(name)
+        if p is None:
+            raise FileNotFoundError(
+                f"ไม่พบ {name} — ติดตั้งผ่าน 'brew install ffmpeg' "
+                f"หรือเพิ่มเข้า vendor/ + tools_manifest.json",
+            )
+        return str(p)
+
     def probe(self, media_path: Path) -> bool:
-        ffprobe = self.tools.resolve("ffprobe")
+        ffprobe = self._require("ffprobe")
         result = self.runner.run([ffprobe, "-v", "error", "-show_format", media_path], timeout=15)
         return result.returncode == 0
 
@@ -36,7 +47,7 @@ class MediaService:
         baseline profile + zerolatency + a fixed keyframe interval so MediaCodec
         can recover quickly on the phone side.
         """
-        ffmpeg = str(ffmpeg_path) if ffmpeg_path else str(self.tools.resolve("ffmpeg"))
+        ffmpeg = str(ffmpeg_path) if ffmpeg_path else self._require("ffmpeg")
         keyint = max(1, int(profile.fps * profile.keyint_seconds))
         vf: list[str] = []
         if profile.rotation_filter:
@@ -79,9 +90,9 @@ class MediaService:
 
     def build_ffmpeg_args(self, playlist: Path, profile: StreamProfile, output_url: str) -> list[str]:
         """Legacy FLV-over-RTMP output (e.g., direct push to an RTMP relay)."""
-        ffmpeg = self.tools.resolve("ffmpeg")
+        ffmpeg = self._require("ffmpeg")
         return [
-            str(ffmpeg), "-re", "-stream_loop", "-1" if profile.loop_playlist else "0",
+            ffmpeg, "-re", "-stream_loop", "-1" if profile.loop_playlist else "0",
             "-f", "concat", "-safe", "0", "-i", str(playlist),
             "-r", str(profile.fps),
             "-s", f"{profile.width}x{profile.height}",

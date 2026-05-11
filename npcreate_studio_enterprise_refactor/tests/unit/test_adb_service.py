@@ -22,6 +22,9 @@ class _FakeTools:
     def resolve(self, name: str) -> str:
         return f"{self.adb_path}-{name}" if name != "adb" else self.adb_path
 
+    def resolve_or_path(self, name: str, *, path_name: str | None = None) -> str:
+        return self.resolve(name)
+
 
 class _FakeRunner:
     """Stub that records argv lists and returns canned CommandResult per match."""

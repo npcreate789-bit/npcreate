@@ -45,7 +45,13 @@ class AdbService:
     # -- plumbing ----------------------------------------------------------
 
     def _adb_path(self) -> str:
-        return str(self.tools.resolve("adb"))
+        path = self.tools.resolve_or_path("adb")
+        if path is None:
+            raise FileNotFoundError(
+                "ไม่พบ adb — ติดตั้งผ่าน 'brew install --cask android-platform-tools' "
+                "หรือเพิ่มเข้า vendor/ + tools_manifest.json",
+            )
+        return str(path)
 
     def _run(self, *args: str, serial: str | None = None, timeout: float = 10.0):
         adb = self._adb_path()

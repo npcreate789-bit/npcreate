@@ -219,7 +219,16 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
             if adb is None:
                 _notify("AdbService ยังไม่ initialized", "error")
                 return
-            if adb.reverse(settings.stream_port, serial=state.selected_serial):
+            try:
+                ok = adb.reverse(settings.stream_port, serial=state.selected_serial)
+            except FileNotFoundError as exc:
+                _notify(str(exc), "error")
+                return
+            except Exception as exc:
+                log.exception("bridge failed")
+                _notify(f"Bridge ล้มเหลว: {exc}", "error")
+                return
+            if ok:
                 state.reverse_active = True
                 _notify(f"adb reverse tcp:{settings.stream_port} ✓", "success")
                 _refresh()

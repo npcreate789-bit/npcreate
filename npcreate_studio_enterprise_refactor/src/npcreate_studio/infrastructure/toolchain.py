@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,23 @@ class ToolchainResolver:
                     self.verify_one(item)
                 return path
         raise FileNotFoundError(f"tool not in manifest: {logical_name}")
+
+    def resolve_or_path(self, logical_name: str, *, path_name: str | None = None) -> Path | None:
+        """Manifest-first resolution with a system-PATH fallback.
+
+        Production builds carry a signed manifest and want manifest-only
+        resolution (use :meth:`resolve`). Dev boxes with Homebrew / apt-get
+        installs benefit from PATH fallback so the GUI is usable without
+        someone pre-populating ``vendor/``. Returns ``None`` when neither
+        lookup succeeds — callers decide whether that's a toast or a hard
+        error.
+        """
+        try:
+            return self.resolve(logical_name)
+        except FileNotFoundError:
+            pass
+        found = shutil.which(path_name or logical_name)
+        return Path(found) if found else None
 
     def verify_one(self, item: ToolFile) -> None:
         path = (self.root / item.relative_path).resolve()
