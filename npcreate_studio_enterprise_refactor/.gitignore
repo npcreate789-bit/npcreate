@@ -15,6 +15,8 @@ backend_data/
 vendor/
 dist/
 build/
+# LSPatch jar — 11 MB binary, fetched via scripts/fetch_lspatch.sh
+.tools/lspatch/*.jar
 # PyInstaller auto-generated specs — but allow our hand-rolled build spec.
 *.spec
 !build_macos_app.spec
