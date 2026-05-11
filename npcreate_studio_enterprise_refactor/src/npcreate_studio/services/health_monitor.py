@@ -94,6 +94,17 @@ class HealthMonitor:
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        # Reset the stall clock so we don't immediately fire a false-alarm
+        # warning if the monitor was constructed minutes before the user
+        # actually pressed Start (e.g. constructed in build_services at app
+        # launch). Without this, last_progress_at carries the construction
+        # timestamp and the very first tick records `stalled_for_s = T_now -
+        # T_app_start` — a phantom stall.
+        now = self._clock()
+        self._snapshot.last_progress_at = now
+        self._snapshot.stalled_for_s = 0.0
+        self._snapshot.is_stalled = False
+        self._last_bytes_sent = 0
         self._stop_evt.clear()
         self._thread = threading.Thread(target=self._loop, name="np-health", daemon=True)
         self._thread.start()

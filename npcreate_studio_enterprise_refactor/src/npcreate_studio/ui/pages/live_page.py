@@ -221,6 +221,12 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
         if orchestrator is None:
             _notify("Streaming service ยังไม่ initialized", "error")
             return
+        # Refuse double-clicks instead of letting the orchestrator raise
+        # "streaming already running". The exception path leaves the user
+        # with no UI feedback about what's wrong; gating here is clearer.
+        if orchestrator.is_running():
+            _notify("กำลังสตรีมอยู่แล้ว — กด Stop ก่อนถ้าจะเปลี่ยน source", "warning")
+            return
         playlist_text = playlist_var.get().strip()
         if not playlist_text:
             _notify("เลือก playlist หรือ video file ก่อน", "warning")
@@ -229,14 +235,19 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
         if not playlist.exists():
             _notify(f"ไม่พบไฟล์: {playlist}", "error")
             return
+        # Disable both Start + the bridge button while we're spinning the
+        # subprocess up so a frantic double-click can't race us.
+        start_btn.configure(state="disabled", text="กำลังเริ่ม…")
         try:
             orchestrator.start(playlist, _resolved_profile())
         except Exception as exc:
             log.exception("orchestrator.start failed")
             _notify(f"Start ไม่สำเร็จ: {exc}", "error")
+            start_btn.configure(state="normal", text="▶ Start streaming")
             return
         if health is not None and not health.is_running():
             health.start()
+        start_btn.configure(state="normal", text="▶ Start streaming")
         _notify(
             f"Listening on {settings.stream_host}:{settings.stream_port} — กด Bridge แล้วเปิด receiver บนโทรศัพท์",
             "success",
