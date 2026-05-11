@@ -68,18 +68,39 @@ class StreamingSubprocess:
         *,
         env: Mapping[str, str] | None = None,
         cwd: Path | None = None,
+        capture_output: bool = True,
+        detached: bool = False,
     ) -> subprocess.Popen:
+        """Spawn the child. The two extra knobs cover GUI children like scrcpy:
+
+        - ``capture_output=False`` — route stdout/stderr/stdin to DEVNULL so
+          we don't fill OS pipe buffers with output we never read (the SDL
+          window draws its own UI).
+        - ``detached=True`` — pass ``start_new_session=True`` so a Ctrl-C
+          in the parent terminal doesn't propagate down into the child.
+        """
         if not args:
             raise ValueError("args must not be empty")
         exe = self._validate_executable(args[0])
         cmd = [exe, *[str(a) for a in args[1:]]]
         log.info("streaming subprocess start: %s", redact(" ".join(cmd)))
+        if capture_output:
+            io_kwargs: dict[str, object] = {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+            }
+        else:
+            io_kwargs = {
+                "stdout": subprocess.DEVNULL,
+                "stderr": subprocess.DEVNULL,
+                "stdin": subprocess.DEVNULL,
+            }
         return subprocess.Popen(  # noqa: S603 — validated above
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             bufsize=0,
             shell=False,
             cwd=str(cwd) if cwd else None,
             env=self._clean_env(env),
+            start_new_session=detached,
+            **io_kwargs,  # type: ignore[arg-type]
         )
