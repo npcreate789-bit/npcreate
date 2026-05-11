@@ -127,6 +127,48 @@ def test_tick_marks_stalled_when_no_progress_for_threshold():
     assert snap.is_stalled is True
 
 
+def test_pre_connection_idle_is_not_stalled():
+    """Server listening with no client yet → not a fault, must not WARN-spam.
+
+    Repro from the live debug session: HealthMonitor would tick once per 2s
+    and emit WARNING `stall=NNNs` forever before the first phone connection,
+    even though nothing was wrong. After Phase J the pre-connection state
+    keeps the stall clock pinned at 0 and is_stalled stays False.
+    """
+    monitor, _, clock, stats = _make_monitor(interval_s=1.0, stall_warn_after_s=2.0)
+    # Server is listening but no client yet: bytes_sent=0, client_addr="".
+    stats[-1] = StreamerStats(bytes_sent=0, client_addr="")
+    for _ in range(10):
+        clock.advance(1.0)
+        snap = monitor.tick()
+    assert snap.stalled_for_s == 0.0
+    assert snap.is_stalled is False
+
+
+def test_stall_resumes_once_client_connects_then_freezes():
+    """First a client connects + bytes flow; then bytes freeze → stall fires."""
+    monitor, _, clock, stats = _make_monitor(interval_s=1.0, stall_warn_after_s=3.0)
+    # Pre-connection: 5 idle ticks.
+    stats[-1] = StreamerStats(bytes_sent=0, client_addr="")
+    for _ in range(5):
+        clock.advance(1.0)
+        snap = monitor.tick()
+    assert snap.is_stalled is False
+
+    # Client connects, bytes flow.
+    stats[-1] = StreamerStats(bytes_sent=100_000, client_addr="127.0.0.1:51234")
+    clock.advance(1.0)
+    snap = monitor.tick()
+    assert snap.is_progressing is True
+
+    # Now bytes freeze → real stall.
+    for _ in range(4):
+        clock.advance(1.0)
+        snap = monitor.tick()
+    assert snap.is_stalled is True
+    assert snap.stalled_for_s >= 3.0
+
+
 def test_progressing_when_phone_yuv_mtime_advances_even_without_bytes():
     fake_adb = _FakeAdb(shell_responses={
         "stat -c": "12345 1700000100",
