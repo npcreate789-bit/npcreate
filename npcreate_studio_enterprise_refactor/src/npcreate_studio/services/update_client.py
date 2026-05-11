@@ -47,7 +47,7 @@ class UpdateClient:
         signed_payload = (
             f"{manifest.version}|{manifest.channel}|{manifest.mandatory}|"
             f"{manifest.download_url}|{manifest.sha256}"
-        ).encode("utf-8")
+        ).encode()
         try:
             public_key.verify(bytes.fromhex(manifest.signature), signed_payload)
         except InvalidSignature as exc:

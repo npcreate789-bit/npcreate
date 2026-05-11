@@ -11,7 +11,6 @@ from npcreate_backend.db import connect, migrate, one
 from npcreate_backend.refresh_tokens import hash_refresh_token, issue_refresh_token
 from npcreate_backend.security import hash_license_key, iso, utcnow
 
-
 VALID_FINGERPRINT = "fp-test-device-fingerprint-1234567890ab"
 
 
@@ -157,8 +156,11 @@ def test_admin_release_revokes_refresh_tokens(client, backend_env):
 
     # Seed admin owner so we can call release endpoint.
     from datetime import timedelta as _td
+
     from npcreate_backend.admin_security import (
         csrf_token as new_csrf,
+    )
+    from npcreate_backend.admin_security import (
         hash_password,
         hash_session_token,
         new_mfa_secret,

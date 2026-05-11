@@ -3,13 +3,13 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from .db import connect, migrate
+from .jobs import billing_job_loop
 from .observability import configure_logging
 from .routes_admin import router as admin_router
 from .routes_auth import router as auth_router
 from .routes_dashboard import router as dashboard_router
 from .routes_public import router as public_router
 from .settings import BackendSettings
-from .jobs import billing_job_loop
 
 
 def create_app() -> FastAPI:

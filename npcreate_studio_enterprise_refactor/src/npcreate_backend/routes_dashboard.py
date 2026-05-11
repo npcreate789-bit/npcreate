@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from .auth import require_admin, get_settings
+from .auth import get_settings, require_admin
 from .db import all_rows, connect, migrate, one
 from .pagination import clamp_limit, clamp_offset, like_escape
 from .settings import BackendSettings

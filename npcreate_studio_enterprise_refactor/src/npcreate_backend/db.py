@@ -47,7 +47,7 @@ class PgConnection:
     def close(self) -> None:
         self._conn.close()
 
-    def __enter__(self) -> "PgConnection":
+    def __enter__(self) -> PgConnection:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

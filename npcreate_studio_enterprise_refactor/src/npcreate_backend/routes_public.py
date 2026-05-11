@@ -5,7 +5,7 @@ import secrets
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from .auth import get_activation_claims, get_settings, rate_limit_activation, require_app_api_key
 from .billing import count_bound_devices, get_policy_for_device, process_payment_webhook
@@ -18,10 +18,18 @@ from .models import (
     RefreshTokenResponse,
     ReleaseRequestCreate,
 )
-from .refresh_tokens import issue_refresh_token, rotate_refresh_token
-from .security import sanitize_metadata, create_token, hash_device_fingerprint, hash_license_key, iso, parse_dt, sanitize_metadata, utcnow, verify_webhook_signature
-from .settings import BackendSettings
 from .payment_providers import get_adapter
+from .refresh_tokens import issue_refresh_token, rotate_refresh_token
+from .security import (
+    create_token,
+    hash_device_fingerprint,
+    hash_license_key,
+    iso,
+    parse_dt,
+    sanitize_metadata,
+    utcnow,
+)
+from .settings import BackendSettings
 
 router = APIRouter(prefix="/api/v1")
 

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from npcreate_backend.admin_security import _totp_at, hash_session_token, new_mfa_secret, verify_totp
 from npcreate_backend.db import connect, migrate, one
 from npcreate_backend.jobs import run_billing_maintenance
-from npcreate_backend.payment_providers import StripeAdapter, get_adapter
+from npcreate_backend.payment_providers import StripeAdapter
 from npcreate_backend.security import iso, utcnow
 from npcreate_backend.settings import BackendSettings
 

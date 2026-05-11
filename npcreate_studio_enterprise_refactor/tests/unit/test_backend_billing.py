@@ -3,7 +3,13 @@ import hmac
 import json
 from datetime import timedelta
 
-from npcreate_backend.billing import create_subscription, default_device_policies, get_policy_for_device, process_payment_webhook, upsert_device_policies
+from npcreate_backend.billing import (
+    create_subscription,
+    default_device_policies,
+    get_policy_for_device,
+    process_payment_webhook,
+    upsert_device_policies,
+)
 from npcreate_backend.db import connect, migrate, one
 from npcreate_backend.security import hash_license_key, iso, utcnow, verify_webhook_signature
 from npcreate_backend.settings import BackendSettings

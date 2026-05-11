@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from ..domain.devices import Device, DeviceConnection
 from ..infrastructure.subprocess_runner import SubprocessRunner
 from ..infrastructure.toolchain import ToolchainResolver

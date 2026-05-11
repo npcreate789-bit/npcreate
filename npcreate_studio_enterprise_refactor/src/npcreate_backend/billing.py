@@ -14,7 +14,6 @@ from .observability import log_event
 from .security import iso, parse_dt, payload_hash, sanitize_metadata, utcnow
 from .settings import BackendSettings
 
-
 SUCCESS_EVENTS = {"payment.succeeded", "charge.succeeded", "invoice.paid", "subscription.payment_succeeded"}
 FAILED_EVENTS = {"payment.failed", "charge.failed", "invoice.payment_failed", "subscription.cancelled"}
 

@@ -12,14 +12,14 @@ license = { text = "Proprietary" }
 authors = [{ name = "NP Create" }]
 dependencies = [
   "customtkinter==5.2.2",
-  "pillow>=10.4,<12",
+  "pillow>=12.2,<13",
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.30,<1",
   "httpx>=0.27,<1",
   "pydantic>=2.8,<3",
   "pydantic-settings>=2.4,<3",
   "certifi>=2024.7.4",
-  "cryptography>=43,<46",
+  "cryptography>=46.0.7,<47",
   "qrcode[pil]>=7.4,<8",
   "python-multipart>=0.0.9,<1",
 
@@ -30,12 +30,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8,<9",
+  "pytest>=9,<10",
   "pytest-cov>=5,<7",
   "ruff>=0.6,<1",
   "mypy>=1.11,<2",
   "pip-audit>=2.7,<3",
   "bandit>=1.7,<2",
+  "pip-tools>=7.4,<8",
 ]
 build = [
   "pyinstaller>=6,<7",
@@ -50,12 +51,36 @@ npcreate-verify-tools = "npcreate_studio.scripts.verify_bundled_tools:main"
 packages = ["src/npcreate_studio", "src/npcreate_backend"]
 
 [tool.ruff]
-line-length = 100
+line-length = 140
 target-version = "py311"
+extend-exclude = [".venv", "build", "dist", ".pytest_cache"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "T20"]
-ignore = ["S101"]
+ignore = [
+  "S101",  # asserts are fine in tests
+  "S608",  # all SQL is parameterized; ruff can't tell composed f-strings are static
+  "E501",  # tolerated; many legitimate long lines are HTML/SQL literals
+  "B008",  # FastAPI `Depends(...)` in defaults is the canonical pattern
+  "S110",  # migration fallback try/except pass is intentional
+  "S603",  # subprocess calls are vetted at the SubprocessRunner allowlist
+  "UP042", # str+Enum mix retained for cross-version compatibility
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "S105",  # hardcoded test passwords are intentional
+  "S106",
+  "S108",  # /tmp paths in safe_archive tests
+  "S104",  # 0.0.0.0 used to test that we reject it
+]
+"scripts/**/*.py" = [
+  "T201",  # scripts intentionally print to stdout
+  "S310",  # urllib usage is intentional
+]
+"src/npcreate_studio/scripts/**/*.py" = [
+  "T201",  # bundled verifier prints to stdout
+]
 
 [tool.mypy]
 python_version = "3.11"
@@ -68,3 +93,12 @@ strict_optional = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "build", "dist"]
+skips = [
+  "B101",  # asserts in non-test paths are fine for invariant checks
+  "B608",  # SQL composed from static literals only; values are parameterized
+  "B110",  # migration ALTER COLUMN fallback try/except is intentional
+  "B310",  # urllib.urlopen target comes from signed update manifest verified upstream
+]

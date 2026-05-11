@@ -7,7 +7,6 @@ import secrets
 import struct
 import time
 from datetime import timedelta
-from typing import Any
 
 try:
     from argon2 import PasswordHasher

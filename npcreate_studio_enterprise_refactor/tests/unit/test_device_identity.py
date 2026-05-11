@@ -1,5 +1,5 @@
-from npcreate_studio.services.device_identity import DeviceIdentityService
 from npcreate_studio.domain.licenses import DeviceType
+from npcreate_studio.services.device_identity import DeviceIdentityService
 
 
 def test_phone_identity_is_stable():

@@ -10,19 +10,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from .auth import get_settings, require_role, verify_admin_csrf
 from .billing import audit_log, create_subscription, default_device_policies, list_device_policies, upsert_device_policies
 from .db import all_rows, connect, migrate, one
-from .observability import log_event
-from .pagination import clamp_limit, clamp_offset, like_escape, paginated
-from .refresh_tokens import revoke_device_refresh_tokens
 from .models import (
     AdminCreateLicenseRequest,
     AdminCreateLicenseResponse,
     AdminCreateSubscriptionRequest,
     AdminPublishNewsRequest,
-    AdminResolveReleaseRequest,
     AdminPublishUpdateRequest,
     AdminRenewLicenseRequest,
+    AdminResolveReleaseRequest,
     AdminUpsertDevicePoliciesRequest,
 )
+from .observability import log_event
+from .pagination import clamp_limit, clamp_offset, like_escape, paginated
+from .refresh_tokens import revoke_device_refresh_tokens
 from .security import hash_license_key, iso, new_license_key, parse_dt, sign_update_manifest, utcnow
 from .settings import BackendSettings
 

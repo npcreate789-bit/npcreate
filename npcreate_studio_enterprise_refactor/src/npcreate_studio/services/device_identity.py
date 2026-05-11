@@ -5,8 +5,8 @@ import json
 import platform
 import socket
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from ..domain.licenses import DeviceIdentity, DeviceType
 

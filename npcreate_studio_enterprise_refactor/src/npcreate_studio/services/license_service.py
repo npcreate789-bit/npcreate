@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -27,7 +27,7 @@ class LicenseVerifier:
         expires_at = None
         if expires:
             expires_at = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-            if expires_at < datetime.now(timezone.utc):
+            if expires_at < datetime.now(UTC):
                 raise SecurityError("license expired")
         return VerifiedLicense(
             license_id=str(payload["license_id"]),

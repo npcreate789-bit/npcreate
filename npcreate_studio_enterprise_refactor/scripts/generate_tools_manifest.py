@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from npcreate_studio.core.security import sha256_file
@@ -43,7 +43,7 @@ def main() -> int:
         })
     payload = {
         "schema": 1,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "root": args.root,
         "files": files,
     }

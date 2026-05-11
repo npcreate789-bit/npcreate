@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 from npcreate_backend.billing import create_subscription, default_device_policies, process_payment_webhook, upsert_device_policies
-from npcreate_backend.db import connect, migrate, one
+from npcreate_backend.db import connect, migrate
 from npcreate_backend.security import hash_device_fingerprint, hash_license_key, iso, utcnow, verify_webhook_signature
 from npcreate_backend.settings import BackendSettings
 

@@ -7,7 +7,7 @@ import json
 import re
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -17,11 +17,11 @@ MAX_METADATA_JSON_BYTES = 16_384
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def iso(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return dt.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def parse_dt(value: str | None) -> datetime | None:
@@ -79,7 +79,7 @@ def new_license_key(prefix: str = "NP") -> str:
 
 def sign_update_manifest(private_key_hex: str, *, version: str, channel: str, mandatory: bool, download_url: str, sha256: str) -> str:
     private_key = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(private_key_hex))
-    payload = f"{version}|{channel}|{mandatory}|{download_url}|{sha256}".encode("utf-8")
+    payload = f"{version}|{channel}|{mandatory}|{download_url}|{sha256}".encode()
     return private_key.sign(payload).hex()
 
 
@@ -88,7 +88,7 @@ def create_token(secret: str, subject: str, claims: dict[str, Any], ttl: timedel
     body = {"sub": subject, "iat": int(utcnow().timestamp()), "exp": int((utcnow() + ttl).timestamp()), **claims}
     header_b64 = _b64(json.dumps(header, separators=(",", ":")).encode())
     body_b64 = _b64(json.dumps(body, separators=(",", ":")).encode())
-    sig = hmac.new(secret.encode("utf-8"), f"{header_b64}.{body_b64}".encode("utf-8"), hashlib.sha256).digest()
+    sig = hmac.new(secret.encode("utf-8"), f"{header_b64}.{body_b64}".encode(), hashlib.sha256).digest()
     return f"{header_b64}.{body_b64}.{_b64(sig)}"
 
 
@@ -97,7 +97,7 @@ def verify_token(secret: str, token: str) -> dict[str, Any]:
         header_b64, body_b64, sig_b64 = token.split(".", 2)
     except ValueError as exc:
         raise ValueError("invalid token format") from exc
-    expected = hmac.new(secret.encode("utf-8"), f"{header_b64}.{body_b64}".encode("utf-8"), hashlib.sha256).digest()
+    expected = hmac.new(secret.encode("utf-8"), f"{header_b64}.{body_b64}".encode(), hashlib.sha256).digest()
     if not hmac.compare_digest(_unb64(sig_b64), expected):
         raise ValueError("invalid token signature")
     body = json.loads(_unb64(body_b64))
@@ -145,7 +145,7 @@ def verify_webhook_signature(
             return False
         if abs(int(time.time()) - ts) > max_age_seconds:
             return False
-        signed_payload = f"{ts}.".encode("utf-8") + payload
+        signed_payload = f"{ts}.".encode() + payload
     elif require_timestamp:
         return False
 

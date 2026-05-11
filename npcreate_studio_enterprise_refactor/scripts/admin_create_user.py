@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import secrets
-from pathlib import Path
 
 from npcreate_backend.admin_security import hash_password, new_mfa_secret, otpauth_uri
 from npcreate_backend.auth import VALID_ROLES
