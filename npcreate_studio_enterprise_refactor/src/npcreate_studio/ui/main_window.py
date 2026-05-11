@@ -167,7 +167,13 @@ class MainWindow:
         self._content.grid_rowconfigure(1, weight=1)
         self._content.grid_columnconfigure(0, weight=1)
 
-        self._show_page("dashboard")
+        # First-run auto-redirect: if no activation yet, drop the user into the
+        # onboarding wizard so they're not staring at an empty dashboard.
+        first_page = "dashboard"
+        lifecycle = self._services.get("lifecycle")
+        if lifecycle is None or lifecycle.current_state() is None:
+            first_page = "onboarding"
+        self._show_page(first_page)
         root.mainloop()
 
     def _build_sidebar(self, parent) -> None:
@@ -184,6 +190,7 @@ class MainWindow:
         ctk.CTkLabel(sidebar, text="เมนูหลัก", text_color=theme.TEXT_MUTED, anchor="w", font=(theme.FONT_FAMILY, 12, "bold")).pack(fill="x", padx=22, pady=(6, 6))
         nav: list[tuple[str, str]] = [
             ("dashboard", "ภาพรวมระบบ"),
+            ("onboarding", "เริ่มต้น"),
             ("license", "License"),
             ("live", "Live Streaming"),
             ("stream", "Stream (RTMP)"),
@@ -228,6 +235,7 @@ class MainWindow:
 
         page_builders: dict[str, Callable] = {
             "dashboard": self._load_page("dashboard_page"),
+            "onboarding": self._load_page("onboarding_page"),
             "license": self._load_page("license_page"),
             "live": self._load_page("live_page"),
             "stream": self._load_page("stream_page"),
@@ -238,6 +246,9 @@ class MainWindow:
             "settings": self._load_page("settings_page"),
         }
         builder = page_builders.get(page_key, page_builders["dashboard"])
+        # Inject a page-switcher callback so pages can request navigation
+        # (e.g. onboarding's "→ Open Live Streaming" button).
+        self._services["_page_switcher"] = self._show_page
         try:
             page = builder(ctk, self._content, self.settings, self._services)
         except TypeError:
