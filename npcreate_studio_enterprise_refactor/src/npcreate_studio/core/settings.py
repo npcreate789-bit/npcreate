@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
     dashboard_host: str = Field(default="127.0.0.1")
     dashboard_port: int = Field(default=8765, ge=1024, le=65535)
+    stream_host: str = Field(default="127.0.0.1")  # bind for FFmpeg→phone TCP; legacy used 0.0.0.0
+    stream_port: int = Field(default=8888, ge=1024, le=65535)
     enable_demo_routes: bool = Field(default=False)
 
     app_version: str = Field(default="2.4.0")
