@@ -17,6 +17,7 @@ from ..services.license_client import LicenseClient
 from ..services.license_lifecycle import LicenseLifecycleService
 from ..services.media_service import MediaService
 from ..services.mirror_service import MirrorService
+from ..services.rtmp_stream_service import RtmpStreamService
 from ..services.streaming_orchestrator import StreamingOrchestrator
 from ..services.tiktok_automation import TikTokAutomation
 from . import theme
@@ -73,6 +74,13 @@ def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
         adb_path=lambda: shutil.which("adb"),
     )
 
+    # Phase C3 — separate RTMP push service (FFmpeg → external ingest URL).
+    rtmp_service = RtmpStreamService(
+        media=media,
+        subprocess=StreamingSubprocess(streaming_policy),
+        ffmpeg_path=ffmpeg_path,
+    )
+
     services.update({
         "media_service": media,
         "adb_service": adb,
@@ -81,6 +89,7 @@ def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
         "device_profile_lib": device_profile_lib,
         "tiktok_automation": tiktok,
         "mirror_service": mirror,
+        "rtmp_service": rtmp_service,
         "toast": toast,
         "settings": settings,
     })
@@ -120,8 +129,9 @@ class MainWindow:
         orchestrator = self._services["orchestrator"]
         health = self._services["health_monitor"]
         mirror = self._services["mirror_service"]
+        rtmp = self._services["rtmp_service"]
 
-        # Graceful shutdown — stop streaming + health + mirror sessions on close.
+        # Graceful shutdown — stop streaming + health + mirror + RTMP on close.
         def _on_close() -> None:
             try:
                 if orchestrator.is_running():
@@ -137,6 +147,11 @@ class MainWindow:
                 mirror.stop_all()
             except Exception:
                 log.exception("mirror.stop_all on close failed")
+            try:
+                if rtmp.is_running():
+                    rtmp.stop()
+            except Exception:
+                log.exception("rtmp stop on close failed")
             root.destroy()
 
         root.protocol("WM_DELETE_WINDOW", _on_close)
@@ -171,6 +186,7 @@ class MainWindow:
             ("dashboard", "ภาพรวมระบบ"),
             ("license", "License"),
             ("live", "Live Streaming"),
+            ("stream", "Stream (RTMP)"),
             ("devices", "ผูกอุปกรณ์"),
             ("updates", "อัปเดตโปรแกรม"),
             ("news", "ข่าวสาร"),
@@ -214,6 +230,7 @@ class MainWindow:
             "dashboard": self._load_page("dashboard_page"),
             "license": self._load_page("license_page"),
             "live": self._load_page("live_page"),
+            "stream": self._load_page("stream_page"),
             "devices": self._load_page("devices_page"),
             "updates": self._load_page("updates_page"),
             "news": self._load_page("news_page"),

@@ -13,6 +13,7 @@ from npcreate_studio.services.device_profile_repository import DeviceProfileLibr
 from npcreate_studio.services.health_monitor import HealthMonitor
 from npcreate_studio.services.media_service import MediaService
 from npcreate_studio.services.mirror_service import MirrorService
+from npcreate_studio.services.rtmp_stream_service import RtmpStreamService
 from npcreate_studio.services.streaming_orchestrator import StreamingOrchestrator
 from npcreate_studio.services.tiktok_automation import TikTokAutomation
 from npcreate_studio.ui.main_window import build_services
@@ -38,6 +39,7 @@ def test_build_services_returns_all_expected_keys(tmp_path):
         "device_profile_lib",
         "tiktok_automation",
         "mirror_service",
+        "rtmp_service",
         "toast",
         "settings",
     }
@@ -68,6 +70,7 @@ def test_build_services_assigns_correct_runtime_types(tmp_path):
     assert isinstance(services["device_profile_lib"], DeviceProfileLibrary)
     assert isinstance(services["tiktok_automation"], TikTokAutomation)
     assert isinstance(services["mirror_service"], MirrorService)
+    assert isinstance(services["rtmp_service"], RtmpStreamService)
 
 
 def test_build_services_health_monitor_pulls_stats_from_orchestrator(tmp_path):
