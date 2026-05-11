@@ -16,11 +16,75 @@ from ..services.health_monitor import HealthMonitor
 from ..services.license_client import LicenseClient
 from ..services.license_lifecycle import LicenseLifecycleService
 from ..services.media_service import MediaService
+from ..services.mirror_service import MirrorService
 from ..services.streaming_orchestrator import StreamingOrchestrator
+from ..services.tiktok_automation import TikTokAutomation
 from . import theme
 from .components.toast import ToastManager
 
 log = logging.getLogger(__name__)
+
+
+def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
+    """Assemble the service bundle that pages receive.
+
+    Extracted out of ``MainWindow.run`` so the wiring is unit-testable without
+    instantiating Tk. ``toast`` can be a stub (or ``None``) when no display is
+    available — pages defensively handle missing toast.
+    """
+    services: dict[str, Any] = {}
+
+    if settings.license_server_url:
+        client = LicenseClient(base_url=settings.license_server_url, app_version=settings.app_version)
+        store = SecureStore(settings.app_data_path)
+        services["lifecycle"] = LicenseLifecycleService(client=client, store=store)
+
+    # Streaming + ADB stack (Phases A1–A3). Falls back to PATH for ffmpeg/adb
+    # in dev when vendor/ is empty; production builds rely on tools_manifest.
+    runner = SubprocessRunner()
+    tools = ToolchainResolver(root=settings.tool_root_path, manifest_path=settings.tools_manifest_path)
+    media = MediaService(tools=tools, runner=runner)
+    adb = AdbService(tools=tools, runner=runner)
+    ffmpeg_path = shutil.which("ffmpeg")
+    streaming_policy = StreamingPolicy(allowed_names=frozenset({"ffmpeg", "ffmpeg.exe"}))
+    orchestrator = StreamingOrchestrator(
+        settings=settings,
+        media=media,
+        subprocess=StreamingSubprocess(streaming_policy),
+        ffmpeg_path=ffmpeg_path,
+    )
+    health = HealthMonitor(
+        stats_provider=lambda: orchestrator.stats,
+        adb=adb,
+        interval_s=2.0,
+    )
+    device_profile_lib = load_device_profile_library(
+        user_path=settings.app_data_path / "device_profiles.json",
+    )
+
+    # Phase B1 + B3 — TikTok automation + scrcpy mirror sessions.
+    tiktok = TikTokAutomation(adb=adb)
+    scrcpy_path_value = shutil.which("scrcpy")
+    from pathlib import Path as _Path
+    mirror_policy = StreamingPolicy(allowed_names=frozenset({"scrcpy", "scrcpy.exe"}))
+    mirror = MirrorService(
+        subprocess_helper=StreamingSubprocess(mirror_policy),
+        scrcpy_path=lambda: _Path(scrcpy_path_value) if scrcpy_path_value else None,
+        adb_path=lambda: shutil.which("adb"),
+    )
+
+    services.update({
+        "media_service": media,
+        "adb_service": adb,
+        "orchestrator": orchestrator,
+        "health_monitor": health,
+        "device_profile_lib": device_profile_lib,
+        "tiktok_automation": tiktok,
+        "mirror_service": mirror,
+        "toast": toast,
+        "settings": settings,
+    })
+    return services
 
 
 class MainWindow:
@@ -51,46 +115,13 @@ class MainWindow:
         root.minsize(1100, 680)
         root.configure(fg_color=theme.BACKGROUND)
         self.toast = ToastManager(ctk, root)
+        self._services = build_services(self.settings, toast=self.toast)
 
-        # Build the service bundle once; pages receive it lazily on first show.
-        if self.settings.license_server_url:
-            client = LicenseClient(base_url=self.settings.license_server_url, app_version=self.settings.app_version)
-            store = SecureStore(self.settings.app_data_path)
-            self._services["lifecycle"] = LicenseLifecycleService(client=client, store=store)
+        orchestrator = self._services["orchestrator"]
+        health = self._services["health_monitor"]
+        mirror = self._services["mirror_service"]
 
-        # Streaming + ADB stack (Phase A1–A3). Falls back to PATH for ffmpeg/adb
-        # in dev when vendor/ is empty; production builds rely on tools_manifest.
-        runner = SubprocessRunner()
-        tools = ToolchainResolver(root=self.settings.tool_root_path, manifest_path=self.settings.tools_manifest_path)
-        media = MediaService(tools=tools, runner=runner)
-        adb = AdbService(tools=tools, runner=runner)
-        ffmpeg_path = shutil.which("ffmpeg")
-        streaming_policy = StreamingPolicy(allowed_names=frozenset({"ffmpeg", "ffmpeg.exe"}))
-        orchestrator = StreamingOrchestrator(
-            settings=self.settings,
-            media=media,
-            subprocess=StreamingSubprocess(streaming_policy),
-            ffmpeg_path=ffmpeg_path,
-        )
-        health = HealthMonitor(
-            stats_provider=lambda: orchestrator.stats,
-            adb=adb,
-            interval_s=2.0,
-        )
-        device_profile_lib = load_device_profile_library(
-            user_path=self.settings.app_data_path / "device_profiles.json",
-        )
-        self._services.update({
-            "media_service": media,
-            "adb_service": adb,
-            "orchestrator": orchestrator,
-            "health_monitor": health,
-            "device_profile_lib": device_profile_lib,
-            "toast": self.toast,
-            "settings": self.settings,
-        })
-
-        # Graceful shutdown — stop streaming + health when the window closes.
+        # Graceful shutdown — stop streaming + health + mirror sessions on close.
         def _on_close() -> None:
             try:
                 if orchestrator.is_running():
@@ -102,6 +133,10 @@ class MainWindow:
                     health.stop()
             except Exception:
                 log.exception("health stop on close failed")
+            try:
+                mirror.stop_all()
+            except Exception:
+                log.exception("mirror.stop_all on close failed")
             root.destroy()
 
         root.protocol("WM_DELETE_WINDOW", _on_close)

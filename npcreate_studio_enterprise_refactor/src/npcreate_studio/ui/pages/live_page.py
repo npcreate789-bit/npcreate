@@ -47,6 +47,7 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
     health = services.get("health_monitor")
     adb = services.get("adb_service")
     toast = services.get("toast")
+    tiktok = services.get("tiktok_automation")
 
     page = ctk.CTkScrollableFrame(parent, fg_color="transparent")
     page.grid_columnconfigure(0, weight=1)
@@ -104,7 +105,9 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
     stop_btn = subtle_button(ctk, actions, "⏹ Stop")
     stop_btn.pack(side="left", padx=(0, 8))
     bridge_btn = subtle_button(ctk, actions, "📱 Bridge to phone (adb reverse)")
-    bridge_btn.pack(side="left")
+    bridge_btn.pack(side="left", padx=(0, 8))
+    tiktok_btn = subtle_button(ctk, actions, "🎬 Auto-walk TikTok → Screen Share")
+    tiktok_btn.pack(side="left")
 
     # ── status pill + warning row ─────────────────────────────────────
     pill_row = ctk.CTkFrame(page, fg_color="transparent")
@@ -229,9 +232,47 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
         else:
             _notify("adb reverse ล้มเหลว — เชื่อม USB + USB Debugging แล้วลองอีกครั้ง", "error")
 
+    def _on_tiktok() -> None:
+        if tiktok is None:
+            _notify("TikTok automation ยังไม่ initialized", "error")
+            return
+        if adb is None or not adb.is_available():
+            _notify("ADB ไม่พร้อม — ตรวจ vendor/adb หรือ PATH", "error")
+            return
+        # Runs in background so the GUI stays responsive (each step has a
+        # multi-second settle delay). Marshal results back via page.after.
+        import threading
+
+        tiktok_btn.configure(state="disabled")
+        _notify("Auto-walking TikTok… (เปิดหน้าจอโทรศัพท์ดูได้)", "info")
+
+        def _worker() -> None:
+            try:
+                results = tiktok.run_to_screen_share(confirm_start=False)
+            except Exception as exc:
+                log.exception("tiktok automation crashed")
+                page.after(0, lambda exc=exc: _notify(f"Auto-walk crashed: {exc}", "error"))
+                page.after(0, lambda: tiktok_btn.configure(state="normal"))
+                return
+            failed = next((r for r in results if not r.ok), None)
+            if failed is None:
+                page.after(0, lambda: _notify(
+                    "Auto-walk ถึง Screen Share แล้ว — กลับไปดูที่โทรศัพท์ + กด Start Now เอง",
+                    "success",
+                ))
+            else:
+                page.after(0, lambda f=failed: _notify(
+                    f"Auto-walk หยุดที่ '{f.name}': {f.detail}",
+                    "warning",
+                ))
+            page.after(0, lambda: tiktok_btn.configure(state="normal"))
+
+        threading.Thread(target=_worker, daemon=True, name="np-tiktok-walk").start()
+
     start_btn.configure(command=_on_start)
     stop_btn.configure(command=_on_stop)
     bridge_btn.configure(command=_on_bridge)
+    tiktok_btn.configure(command=_on_tiktok)
 
     _refresh()
     return page

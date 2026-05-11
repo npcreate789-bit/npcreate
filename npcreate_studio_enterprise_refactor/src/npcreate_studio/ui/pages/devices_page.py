@@ -36,6 +36,7 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
     services = services or {}
     adb = services.get("adb_service")
     toast = services.get("toast")
+    mirror = services.get("mirror_service")
 
     page = ctk.CTkScrollableFrame(parent, fg_color="transparent")
     section_title(
@@ -119,6 +120,27 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
 
             inspect_btn.configure(command=_on_inspect)
             inspect_btn.pack(side="right", padx=12, pady=12)
+
+            if mirror is not None:
+                mirroring = mirror.is_mirroring(device.serial)
+                mirror_label = "🪞 หยุด Mirror" if mirroring else "🪞 Mirror"
+                mirror_btn = subtle_button(ctk, row, mirror_label)
+
+                def _on_mirror(serial: str = device.serial, label: str = device_display_label(device)) -> None:
+                    if mirror.is_mirroring(serial):
+                        if mirror.stop_mirror(serial):
+                            _notify(f"หยุด Mirror {serial}", "info")
+                    else:
+                        result = mirror.start_mirror(serial, label=label)
+                        if result.ok:
+                            _notify(f"เปิด Mirror {serial} (pid={result.pid})", "success")
+                        else:
+                            extra = f" — ติดตั้ง: {result.install_url}" if result.install_url else ""
+                            _notify(f"Mirror ล้มเหลว: {result.error}{extra}", "error")
+                    _do_refresh()
+
+                mirror_btn.configure(command=_on_mirror)
+                mirror_btn.pack(side="right", padx=(0, 8), pady=12)
 
     def _render_props(serial: str | None) -> None:
         _clear_below_title(props_card)
