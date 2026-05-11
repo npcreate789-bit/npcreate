@@ -15,12 +15,72 @@ class ConnectionLike(Protocol):
     def close(self) -> None: ...
 
 
-class PgConnection:
-    """Tiny psycopg adapter so existing route code can keep sqlite-style '?' params.
+# Unified IntegrityError tuple — catches both sqlite3 and psycopg unique-constraint
+# violations. Use as `except INTEGRITY_ERRORS:` so both backends work in the same code.
+_INTEGRITY_ERRORS: tuple[type[BaseException], ...] = (sqlite3.IntegrityError,)
+try:  # pragma: no cover
+    import psycopg.errors as _pg_errors
 
-    This is a bridge for the refactor. For a large system, migrate routes to a
-    proper repository layer or SQLAlchemy. It still gives production deployments
-    a real PostgreSQL backend instead of local SQLite.
+    _INTEGRITY_ERRORS = (sqlite3.IntegrityError, _pg_errors.IntegrityError)
+except ImportError:
+    pass
+INTEGRITY_ERRORS: tuple[type[BaseException], ...] = _INTEGRITY_ERRORS
+
+
+def _qmark_to_pyformat(sql: str) -> str:
+    """Rewrite SQLite-style `?` placeholders to psycopg's `%s`, skipping string literals.
+
+    A literal `?` inside a string or quoted identifier must pass through
+    unchanged; naive `str.replace('?', '%s')` would corrupt such SQL. Also
+    doubles bare `%` since psycopg treats it as a format character.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        if ch == "'":
+            out.append(ch)
+            i += 1
+            while i < n:
+                if sql[i] == "'":
+                    out.append("'")
+                    i += 1
+                    if i < n and sql[i] == "'":
+                        out.append("'")
+                        i += 1
+                        continue
+                    break
+                out.append(sql[i])
+                i += 1
+        elif ch == '"':
+            out.append(ch)
+            i += 1
+            while i < n:
+                if sql[i] == '"':
+                    out.append('"')
+                    i += 1
+                    break
+                out.append(sql[i])
+                i += 1
+        elif ch == "?":
+            out.append("%s")
+            i += 1
+        elif ch == "%":
+            out.append("%%")
+            i += 1
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
+
+
+class PgConnection:
+    """psycopg adapter that lets the rest of the codebase keep sqlite-style `?`
+    placeholders. Production deployments use real PostgreSQL via DATABASE_URL.
+
+    Placeholder rewriting uses `_qmark_to_pyformat`, which preserves `?` inside
+    string literals.
     """
 
     def __init__(self, url: str) -> None:
@@ -34,15 +94,19 @@ class PgConnection:
         self._conn.autocommit = False
 
     def execute(self, sql: str, params: Iterable[object] = ()):
-        converted = sql.replace("?", "%s")
-        return self._conn.execute(converted, tuple(params))
+        return self._conn.execute(_qmark_to_pyformat(sql), tuple(params))
 
     def executescript(self, sql: str):
+        # Naive split on `;` works for the schema we ship (no `;` inside string
+        # literals). Do not extend this without a real SQL tokenizer.
         for statement in [s.strip() for s in sql.split(";") if s.strip()]:
             self.execute(statement)
 
     def commit(self) -> None:
         self._conn.commit()
+
+    def rollback(self) -> None:
+        self._conn.rollback()
 
     def close(self) -> None:
         self._conn.close()
@@ -293,16 +357,26 @@ def connect(target: str | Path) -> sqlite3.Connection | PgConnection:
     return conn
 
 
+def _add_column_if_missing(conn: sqlite3.Connection | PgConnection, table: str, column: str, ddl: str) -> None:
+    """Idempotent `ALTER TABLE ADD COLUMN`.
+
+    Postgres supports `IF NOT EXISTS` natively (since 9.6) so no rollback is
+    needed. SQLite has no such syntax, so we catch `OperationalError` on the
+    duplicate-column case; SQLite's transaction stays usable after that error.
+    """
+    if isinstance(conn, PgConnection):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {ddl}")
+        return
+    try:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    except sqlite3.OperationalError:
+        pass
+
+
 def migrate(conn: sqlite3.Connection | PgConnection) -> None:
     conn.executescript(SQLITE_SCHEMA)
-    try:
-        conn.execute("ALTER TABLE subscriptions ADD COLUMN grace_until TEXT")
-    except Exception:
-        pass
-    try:
-        conn.execute("ALTER TABLE admin_users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'")
-    except Exception:
-        pass
+    _add_column_if_missing(conn, "subscriptions", "grace_until", "TEXT")
+    _add_column_if_missing(conn, "admin_users", "role", "TEXT NOT NULL DEFAULT 'admin'")
     if isinstance(conn, PgConnection):
         conn.execute("INSERT INTO schema_migrations(version) VALUES (?) ON CONFLICT (version) DO NOTHING", (SCHEMA_VERSION,))
     else:

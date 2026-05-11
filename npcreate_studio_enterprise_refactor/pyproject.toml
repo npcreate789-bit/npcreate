@@ -93,6 +93,9 @@ strict_optional = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "postgres: integration tests that require TEST_POSTGRES_URL (skipped otherwise)",
+]
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "build", "dist"]

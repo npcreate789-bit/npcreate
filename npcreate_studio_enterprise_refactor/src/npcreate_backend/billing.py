@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from .db import all_rows, one
+from .db import INTEGRITY_ERRORS, all_rows, one
 from .observability import log_event
 from .security import iso, parse_dt, payload_hash, sanitize_metadata, utcnow
 from .settings import BackendSettings
@@ -223,7 +223,7 @@ def process_payment_webhook(
             """,
             (event_id, provider, external_event_id, event_type, 1 if signature_valid else 0, payload_sha, "received", iso(utcnow())),
         )
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
         existing = one(conn, "SELECT event_id, processing_status FROM payment_events WHERE provider=? AND external_event_id=?", (provider, external_event_id))
         return {"ok": True, "duplicate": True, "event_id": existing["event_id"], "status": existing["processing_status"]}
 
@@ -315,7 +315,7 @@ def process_payment_webhook(
                 iso(utcnow()),
             ),
         )
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
         conn.execute("UPDATE payment_events SET processing_status='duplicate_payment', processed_at=? WHERE event_id=?", (iso(utcnow()), event_id))
         return {"ok": True, "event_id": event_id, "status": "duplicate_payment"}
 
