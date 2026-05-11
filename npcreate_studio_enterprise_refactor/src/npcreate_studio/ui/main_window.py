@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from ..core.settings import Settings
+from ..infrastructure.secure_store import SecureStore
+from ..services.license_client import LicenseClient
+from ..services.license_lifecycle import LicenseLifecycleService
 from . import theme
 from .components.toast import ToastManager
 
@@ -15,6 +19,7 @@ class MainWindow:
         self.settings = settings
         self._content = None
         self._nav_buttons: dict[str, object] = {}
+        self._services: dict[str, Any] = {}
 
     def run(self) -> None:
         """Production-ready CustomTkinter shell.
@@ -37,6 +42,14 @@ class MainWindow:
         root.minsize(1100, 680)
         root.configure(fg_color=theme.BACKGROUND)
         self.toast = ToastManager(ctk, root)
+
+        # Build the service bundle once; pages receive it lazily on first show.
+        if self.settings.license_server_url:
+            client = LicenseClient(base_url=self.settings.license_server_url, app_version=self.settings.app_version)
+            store = SecureStore(self.settings.app_data_path)
+            self._services["lifecycle"] = LicenseLifecycleService(client=client, store=store)
+        self._services["toast"] = self.toast
+        self._services["settings"] = self.settings
 
         shell = ctk.CTkFrame(root, fg_color=theme.BACKGROUND)
         shell.pack(fill="both", expand=True)
@@ -115,7 +128,12 @@ class MainWindow:
             "logs": self._load_page("logs_page"),
             "settings": self._load_page("settings_page"),
         }
-        page = page_builders.get(page_key, page_builders["dashboard"])(ctk, self._content, self.settings)
+        builder = page_builders.get(page_key, page_builders["dashboard"])
+        try:
+            page = builder(ctk, self._content, self.settings, self._services)
+        except TypeError:
+            # Backward-compat for builders that haven't migrated to (ctk, parent, settings, services).
+            page = builder(ctk, self._content, self.settings)
         page.grid(row=1, column=0, sticky="nsew")
 
     def _load_page(self, module_name: str) -> Callable:
