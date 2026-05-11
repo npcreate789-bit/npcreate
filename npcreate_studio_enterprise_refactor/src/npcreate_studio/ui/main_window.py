@@ -11,6 +11,7 @@ from ..infrastructure.streaming_subprocess import StreamingPolicy, StreamingSubp
 from ..infrastructure.subprocess_runner import SubprocessRunner
 from ..infrastructure.toolchain import ToolchainResolver
 from ..services.adb_service import AdbService
+from ..services.backup_service import BackupService
 from ..services.device_profile_repository import load_combined as load_device_profile_library
 from ..services.health_monitor import HealthMonitor
 from ..services.license_client import LicenseClient
@@ -109,6 +110,14 @@ def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
             token_provider=_token_provider,
         )
 
+    # Phase E2 — backup/restore service. Operates on app_data_path where
+    # device_profiles.json + client_state.json actually live.
+    backup_service = BackupService(
+        settings.app_data_path,
+        app_name="NP Create Studio",
+        app_version=settings.app_version,
+    )
+
     services.update({
         "media_service": media,
         "adb_service": adb,
@@ -119,6 +128,7 @@ def build_services(settings: Settings, *, toast: Any = None) -> dict[str, Any]:
         "mirror_service": mirror,
         "rtmp_service": rtmp_service,
         "update_orchestrator": update_orch,
+        "backup_service": backup_service,
         "toast": toast,
         "settings": settings,
     })
@@ -246,6 +256,7 @@ class MainWindow:
             ("devices", "ผูกอุปกรณ์"),
             ("profiles", "Device Profiles"),
             ("updates", "อัปเดตโปรแกรม"),
+            ("backup", "Backup / Restore"),
             ("news", "ข่าวสาร"),
             ("logs", "Log / Error Report"),
             ("settings", "ตั้งค่า"),
@@ -292,6 +303,7 @@ class MainWindow:
             "devices": self._load_page("devices_page"),
             "profiles": self._load_page("profile_page"),
             "updates": self._load_page("updates_page"),
+            "backup": self._load_page("backup_page"),
             "news": self._load_page("news_page"),
             "logs": self._load_page("logs_page"),
             "settings": self._load_page("settings_page"),
