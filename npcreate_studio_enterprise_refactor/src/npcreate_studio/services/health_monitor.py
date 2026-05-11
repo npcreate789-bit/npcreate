@@ -146,21 +146,21 @@ class HealthMonitor:
         mtime_advanced = prev_mtime is not None and mtime is not None and mtime > prev_mtime
         snap.is_progressing = (snap.pc_bytes_per_sec > self._bytes_progress_threshold) or mtime_advanced
 
-        # "Stalled" only makes sense once a client has actually connected. Before
-        # then we're in pre-connection idle (TCP listening, no consumer yet) —
-        # not a fault state. Keep last_progress_at sliding forward so the very
-        # first tick after a phone finally connects starts the stall clock from
-        # zero, not from "minutes ago".
-        pre_connection = not stats.client_addr and stats.bytes_sent == 0
+        # "Stalled" only makes sense while a client is actively connected. With
+        # no client (pre-connection OR post-disconnect with the server still
+        # listening) there's nothing to stall — the pipeline is correctly
+        # idle. Pin last_progress_at so the next real connection starts the
+        # stall clock from zero, not from "minutes ago".
+        no_client = not stats.client_addr
 
         now = self._clock()
-        if snap.is_progressing or pre_connection:
+        if snap.is_progressing or no_client:
             snap.last_progress_at = now
             snap.stalled_for_s = 0.0
         else:
             snap.stalled_for_s = max(0.0, now - snap.last_progress_at)
 
-        snap.is_stalled = (not pre_connection) and snap.stalled_for_s >= self._stall_warn_after_s
+        snap.is_stalled = (not no_client) and snap.stalled_for_s >= self._stall_warn_after_s
 
         line = self._format_line(snap)
         if snap.is_stalled:

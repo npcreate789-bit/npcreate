@@ -108,17 +108,22 @@ def test_tick_copies_streamer_stats_into_snapshot():
 
 def test_tick_marks_stalled_when_no_progress_for_threshold():
     monitor, _, clock, stats = _make_monitor(interval_s=1.0, stall_warn_after_s=3.0)
+    # client_addr must be set on every tick — Phase K treats no client as
+    # "listening, not stalled" so a stall test without a client never fires.
+    CLIENT = "127.0.0.1:12345"
+
     # First two ticks: progressing (bytes increasing fast).
-    stats[-1] = StreamerStats(bytes_sent=0)
+    stats[-1] = StreamerStats(bytes_sent=0, client_addr=CLIENT)
     monitor.tick()
     clock.advance(1.0)
-    stats[-1] = StreamerStats(bytes_sent=100_000)
+    stats[-1] = StreamerStats(bytes_sent=100_000, client_addr=CLIENT)
     snap = monitor.tick()
     assert snap.is_progressing is True
     assert snap.stalled_for_s == 0.0
     assert snap.is_stalled is False
 
-    # Now freeze bytes; stall counter must accumulate.
+    # Now freeze bytes (client still connected); stall counter must accumulate.
+    stats[-1] = StreamerStats(bytes_sent=100_000, client_addr=CLIENT)
     for _ in range(4):
         clock.advance(1.0)
         snap = monitor.tick()
@@ -161,12 +166,38 @@ def test_stall_resumes_once_client_connects_then_freezes():
     snap = monitor.tick()
     assert snap.is_progressing is True
 
-    # Now bytes freeze → real stall.
+    # Now bytes freeze (client still connected) → real stall.
+    stats[-1] = StreamerStats(bytes_sent=100_000, client_addr="127.0.0.1:51234")
     for _ in range(4):
         clock.advance(1.0)
         snap = monitor.tick()
     assert snap.is_stalled is True
     assert snap.stalled_for_s >= 3.0
+
+
+def test_post_disconnect_is_listening_not_stalled():
+    """Phase K: after client disconnects, server is just listening again.
+
+    Repro: in the live debug session, the WARN spam continued for 100+
+    seconds after the test phone disconnected. The cumulative bytes_sent
+    stays positive but no current consumer exists — same UX state as
+    pre-connection. is_stalled must be False.
+    """
+    monitor, _, clock, stats = _make_monitor(interval_s=1.0, stall_warn_after_s=2.0)
+    # Active stream: bytes flowing.
+    stats[-1] = StreamerStats(bytes_sent=100_000, client_addr="127.0.0.1:51234")
+    monitor.tick()
+    clock.advance(1.0)
+    stats[-1] = StreamerStats(bytes_sent=200_000, client_addr="127.0.0.1:51234")
+    monitor.tick()
+
+    # Client disconnects: bytes_sent stays (cumulative), client_addr cleared.
+    stats[-1] = StreamerStats(bytes_sent=200_000, client_addr="")
+    for _ in range(10):
+        clock.advance(1.0)
+        snap = monitor.tick()
+    assert snap.stalled_for_s == 0.0
+    assert snap.is_stalled is False
 
 
 def test_progressing_when_phone_yuv_mtime_advances_even_without_bytes():
@@ -189,7 +220,9 @@ def test_progressing_when_phone_yuv_mtime_advances_even_without_bytes():
 
 def test_stall_logs_warning_when_threshold_crossed(caplog):
     monitor, _, clock, stats = _make_monitor(interval_s=1.0, stall_warn_after_s=2.0)
-    stats[-1] = StreamerStats(bytes_sent=10)
+    # Phase K: stall only fires while a client is connected. Set client_addr
+    # so the post-connection stall path is actually exercised.
+    stats[-1] = StreamerStats(bytes_sent=10, client_addr="127.0.0.1:51234")
     monitor.tick()
     clock.advance(5.0)
     with caplog.at_level(logging.WARNING, logger="npcreate_studio.services.health_monitor"):
