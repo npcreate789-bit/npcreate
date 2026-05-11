@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>Patch Updates</h1><p>ปล่อย signed update manifest ให้โปรแกรมลูกค้า</p></div></div>
+
+{% if not has_signing_key %}
+<div class="card" style="background:#3f0a0a;border-color:#dc2626">
+  <strong style="color:#fecaca">ยังไม่ได้ตั้ง NPCREATE_BACKEND_ED25519_PRIVATE_KEY_HEX</strong>
+  <p class="muted">ต้อง config private key ก่อน จึงจะปล่อย update ผ่าน UI ได้</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0">ปล่อย Update ใหม่</h2>
+  <form method="post" action="/admin/updates/publish" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <div><label class="muted" style="font-size:12px">Version *</label><input class="input" name="version" required placeholder="2.5.0" style="margin:0"></div>
+    <div><label class="muted" style="font-size:12px">Channel</label>
+      <select class="input" name="channel" style="margin:0">
+        <option value="stable">stable</option>
+        <option value="beta">beta</option>
+        <option value="dev">dev</option>
+      </select>
+    </div>
+    <div><label class="muted" style="font-size:12px">Mandatory</label><br>
+      <label style="color:var(--text)"><input type="checkbox" name="mandatory" value="true"> บังคับอัปเดต</label>
+    </div>
+    <div style="grid-column:1/-1"><label class="muted" style="font-size:12px">Download URL *</label><input class="input" name="download_url" required placeholder="https://cdn.example.com/npcreate-2.5.0.zip" style="margin:0"></div>
+    <div style="grid-column:1/-1"><label class="muted" style="font-size:12px">SHA-256 ของไฟล์ (64 hex) *</label><input class="input" name="sha256" required pattern="[0-9a-fA-F]{64}" style="margin:0;font-family:monospace"></div>
+    <div style="grid-column:1/-1"><label class="muted" style="font-size:12px">Release notes</label><textarea class="input" name="release_notes" rows="3" style="margin:0;resize:vertical"></textarea></div>
+    <div style="grid-column:1/-1"><button class="btn" type="submit" {% if not has_signing_key %}disabled{% endif %}>Sign + Publish</button></div>
+  </form>
+</div>
+
+<div class="card section">
+  <form method="get" action="/admin/updates" style="margin-bottom:16px">
+    <select class="input" name="channel" style="width:180px;display:inline-block;margin:0">
+      <option value="">ทุก channel</option>
+      <option value="stable" {% if filters.channel=='stable' %}selected{% endif %}>stable</option>
+      <option value="beta" {% if filters.channel=='beta' %}selected{% endif %}>beta</option>
+      <option value="dev" {% if filters.channel=='dev' %}selected{% endif %}>dev</option>
+    </select>
+    <button class="btn" type="submit">กรอง</button>
+  </form>
+  <table>
+    <tr><th>วันที่</th><th>Version</th><th>Channel</th><th>Mandatory</th><th>SHA256</th><th>URL</th></tr>
+    {% for x in items %}
+    <tr>
+      <td>{{x.published_at}}</td>
+      <td><strong>{{x.version}}</strong></td>
+      <td>{{x.channel}}</td>
+      <td>{{'YES' if x.mandatory else '—'}}</td>
+      <td style="font-family:monospace;font-size:11px">{{x.sha256[:16]}}…</td>
+      <td style="max-width:300px;word-break:break-all;font-size:12px">{{x.download_url}}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
+    <span>
+      {% if meta.has_prev %}<a class="btn secondary" href="?channel={{filters.channel}}&limit={{meta.limit}}&offset={{meta.prev_offset}}">ก่อนหน้า</a>{% endif %}
+      {% if meta.has_next %}<a class="btn" href="?channel={{filters.channel}}&limit={{meta.limit}}&offset={{meta.next_offset}}">ถัดไป</a>{% endif %}
+    </span>
+  </div>
+</div>
+{% endblock %}

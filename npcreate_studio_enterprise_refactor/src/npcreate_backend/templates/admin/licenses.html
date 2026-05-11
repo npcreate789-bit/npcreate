@@ -1,7 +1,30 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<div class="top"><div class="title"><h1>จัดการ License</h1><p>ดูสถานะลูกค้า วันหมดอายุ และข้อมูลติดต่อ</p></div></div>
+<div class="top"><div class="title"><h1>จัดการ License</h1><p>สร้าง ค้นหา ดูสถานะ และต่ออายุ License</p></div></div>
+
+{% if request.query_params.get('created') %}
+<div class="card" style="background:#0a2818;border-color:#16a34a">
+  <strong style="color:#bbf7d0">สร้าง License สำเร็จ</strong>
+  <div style="margin-top:8px"><span class="muted">License ID:</span> <code>{{ request.query_params.get('created') }}</code></div>
+  <div><span class="muted">License Key (เก็บไว้ส่งให้ลูกค้า — ระบบไม่เก็บ plain text):</span></div>
+  <div style="font-family:monospace;font-size:18px;background:#172033;padding:10px;border-radius:8px;margin-top:6px;color:#fbbf24;user-select:all">{{ request.query_params.get('key') }}</div>
+</div>
+{% endif %}
+
 <div class="card">
+  <h2 style="margin-top:0">สร้าง License ใหม่</h2>
+  <form method="post" action="/admin/licenses/create" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <div><label class="muted" style="font-size:12px">ชื่อลูกค้า *</label><input class="input" name="customer_name" required style="margin:0"></div>
+    <div><label class="muted" style="font-size:12px">ติดต่อ</label><input class="input" name="customer_contact" placeholder="email/line" style="margin:0"></div>
+    <div><label class="muted" style="font-size:12px">เดือน</label><input class="input" name="months" type="number" min="1" max="36" value="1" style="margin:0"></div>
+    <div><label class="muted" style="font-size:12px">PC</label><input class="input" name="max_pc_devices" type="number" min="0" max="10" value="1" style="margin:0"></div>
+    <div><label class="muted" style="font-size:12px">Phone</label><input class="input" name="max_phone_devices" type="number" min="0" max="50" value="1" style="margin:0"></div>
+    <div style="grid-column:1/-1"><button class="btn" type="submit">สร้าง License</button></div>
+  </form>
+</div>
+
+<div class="card section">
   <form method="get" action="/admin/licenses" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
     <input class="input" type="text" name="q" value="{{filters.q}}" placeholder="ค้นหา ชื่อลูกค้า / ติดต่อ / license_id" style="flex:1;min-width:240px;margin:0">
     <select class="input" name="status_filter" style="width:160px;margin:0">
@@ -13,7 +36,25 @@
     </select>
     <button class="btn" type="submit">ค้นหา</button>
   </form>
-  <table><tr><th>ลูกค้า</th><th>ติดต่อ</th><th>Status</th><th>Plan</th><th>หมดอายุ</th><th>ID</th></tr>{% for x in items %}<tr><td>{{x.customer_name}}</td><td>{{x.customer_contact}}</td><td><span class="pill {{'green' if x.status=='active' else 'yellow'}}">{{x.status}}</span></td><td>{{x.plan}}</td><td>{{x.expires_at}}</td><td>{{x.license_id}}</td></tr>{% endfor %}</table>
+  <table>
+    <tr><th>ลูกค้า</th><th>ติดต่อ</th><th>Status</th><th>หมดอายุ</th><th>ID</th><th>ต่ออายุ</th></tr>
+    {% for x in items %}
+    <tr>
+      <td>{{x.customer_name}}</td>
+      <td>{{x.customer_contact}}</td>
+      <td><span class="pill {{'green' if x.status=='active' else 'yellow'}}">{{x.status}}</span></td>
+      <td>{{x.expires_at}}</td>
+      <td><code style="font-size:11px">{{x.license_id}}</code></td>
+      <td>
+        <form method="post" action="/admin/licenses/{{x.license_id}}/renew" style="display:flex;gap:6px">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <input class="input" name="months" type="number" min="1" max="36" value="1" style="width:64px;margin:0;padding:6px">
+          <button class="btn secondary" type="submit">+ เดือน</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
     <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
     <span>

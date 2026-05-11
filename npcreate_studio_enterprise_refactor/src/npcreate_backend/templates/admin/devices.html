@@ -26,5 +26,28 @@
     </span>
   </div>
 </div>
-<div class="section card"><h2>คำขอปลดเครื่อง (pending)</h2><table><tr><th>ลูกค้า</th><th>Device</th><th>เหตุผล</th><th>Status</th><th>วันที่ขอ</th></tr>{% for x in release_requests %}<tr><td>{{x.customer_name}}</td><td>{{x.device_type}} / {{x.label}}</td><td>{{x.reason}}</td><td>{{x.status}}</td><td>{{x.requested_at}}</td></tr>{% endfor %}</table></div>
+<div class="section card">
+  <h2>คำขอปลดเครื่อง (pending)</h2>
+  <table>
+    <tr><th>ลูกค้า</th><th>Device</th><th>เหตุผล</th><th>วันที่ขอ</th><th>การจัดการ</th></tr>
+    {% for x in release_requests %}
+    <tr>
+      <td>{{x.customer_name}}</td>
+      <td>{{x.device_type}} / {{x.label}}</td>
+      <td>{{x.reason}}</td>
+      <td>{{x.requested_at}}</td>
+      <td style="display:flex;gap:8px">
+        <form method="post" action="/admin/release-requests/{{x.request_id}}/approve" style="display:inline">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button class="btn" type="submit" style="background:#22c55e">อนุมัติ</button>
+        </form>
+        <form method="post" action="/admin/release-requests/{{x.request_id}}/reject" style="display:inline">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button class="btn secondary" type="submit">ปฏิเสธ</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
 {% endblock %}

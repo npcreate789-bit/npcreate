@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="top"><div class="title"><h1>ข่าวสาร</h1><p>ประกาศที่ส่งไปยังโปรแกรมลูกค้าที่ License ยังใช้งานได้</p></div></div>
+<div class="card">
+  <h2 style="margin-top:0">ประกาศใหม่</h2>
+  <form method="post" action="/admin/news/publish" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <div style="grid-column:span 3"><label class="muted" style="font-size:12px">หัวข้อ *</label><input class="input" name="title" required style="margin:0"></div>
+    <div><label class="muted" style="font-size:12px">ระดับ</label>
+      <select class="input" name="severity" style="margin:0">
+        <option value="info">info</option>
+        <option value="success">success</option>
+        <option value="warning">warning</option>
+        <option value="critical">critical</option>
+      </select>
+    </div>
+    <div style="grid-column:1/-1"><label class="muted" style="font-size:12px">เนื้อหา *</label><textarea class="input" name="body" required rows="4" style="margin:0;resize:vertical"></textarea></div>
+    <div><label class="muted" style="font-size:12px">กลุ่มผู้รับ</label><input class="input" name="audience" value="all" style="margin:0"></div>
+    <div style="grid-column:1/-1"><button class="btn" type="submit">ประกาศ</button></div>
+  </form>
+</div>
+<div class="card section">
+  <h2>ประกาศย้อนหลัง</h2>
+  <table>
+    <tr><th>วันที่</th><th>ระดับ</th><th>หัวข้อ</th><th>กลุ่ม</th><th>เนื้อหา</th></tr>
+    {% for x in items %}
+    <tr>
+      <td>{{x.published_at}}</td>
+      <td><span class="pill {{'red' if x.severity=='critical' else ('yellow' if x.severity=='warning' else ('green' if x.severity=='success' else 'blue'))}}">{{x.severity}}</span></td>
+      <td>{{x.title}}</td>
+      <td>{{x.audience}}</td>
+      <td style="max-width:400px;word-break:break-word">{{x.body[:200]}}{% if x.body|length > 200 %}…{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+    <span class="muted">ทั้งหมด {{meta.total}} รายการ · หน้า {{meta.page}} / {{meta.pages}}</span>
+    <span>
+      {% if meta.has_prev %}<a class="btn secondary" href="?limit={{meta.limit}}&offset={{meta.prev_offset}}">ก่อนหน้า</a>{% endif %}
+      {% if meta.has_next %}<a class="btn" href="?limit={{meta.limit}}&offset={{meta.next_offset}}">ถัดไป</a>{% endif %}
+    </span>
+  </div>
+</div>
+{% endblock %}
