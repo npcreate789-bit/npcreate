@@ -86,7 +86,8 @@ def login_submit(
     ip = request.client.host if request.client else ""
     audit_log(conn, actor_type="admin", actor_id=user["admin_id"], action="admin.login_success", target_type="admin_user", target_id=user["admin_id"], ip_address=ip)
     conn.commit()
-    log_event("admin.login_success", admin_id=user["admin_id"], email=user["email"], ip=ip, role=user.get("role") or "admin")
+    role = user["role"] if "role" in user.keys() else "admin"
+    log_event("admin.login_success", admin_id=user["admin_id"], email=user["email"], ip=ip, role=role)
     resp = RedirectResponse("/admin", status_code=303)
     resp.set_cookie(
         settings.admin_session_cookie_name,
