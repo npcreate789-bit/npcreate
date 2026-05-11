@@ -151,14 +151,47 @@ def build(ctk, parent, settings, services: dict[str, Any] | None = None):
             info_row(ctk, phone_card, k, v).pack(fill="x", padx=18)
         ctk.CTkFrame(phone_card, height=8, fg_color="transparent").pack()
 
+    # Fingerprint the rendered state so we can skip the destroy-and-rebuild of
+    # every CTkLabel when nothing has changed. ``stats`` and ``snap`` are
+    # mutable dataclasses updated in place by the server thread, so reference
+    # equality is useless — we have to compare by value. uptime_s is rounded
+    # to 1 s so we still redraw every second while streaming is active (the
+    # uptime row changes), but skip entirely when fully idle.
+    def _fingerprint(stats: StreamerStats, snap) -> tuple:
+        snap_fp: tuple = ()
+        if snap is not None:
+            snap_fp = (
+                round(snap.pc_bytes_per_sec, 1),
+                snap.phone_yuv_size,
+                snap.phone_yuv_mtime,
+                snap.is_stalled,
+                snap.is_progressing,
+                round(snap.phone_yuv_fresh_s or 0.0, 1),
+            )
+        return (
+            stats.status.value,
+            stats.pid,
+            stats.bytes_sent,
+            stats.frames_sent,
+            round(stats.uptime_s, 0),
+            stats.client_addr,
+            stats.last_error,
+            snap_fp,
+        )
+
+    last_fp: dict[str, Any] = {"value": None}
+
     def _refresh() -> None:
         if not page.winfo_exists():
             return
         stats = orchestrator.stats if orchestrator is not None else StreamerStats()
         snap = health.snapshot if health is not None else None
-        _redraw_pill(stats, snap)
-        _redraw_cards(stats, snap)
-        warning_label.configure(text=health_warning(snap) or "")
+        fp = _fingerprint(stats, snap)
+        if fp != last_fp["value"]:
+            last_fp["value"] = fp
+            _redraw_pill(stats, snap)
+            _redraw_cards(stats, snap)
+            warning_label.configure(text=health_warning(snap) or "")
         try:
             page.after(REFRESH_MS, _refresh)
         except Exception:

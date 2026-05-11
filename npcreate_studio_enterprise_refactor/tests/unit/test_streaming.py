@@ -136,6 +136,39 @@ def test_build_pipe_args_omits_loop_when_disabled():
     assert "-stream_loop" not in args
 
 
+def test_build_pipe_args_uses_concat_demuxer_for_text_playlist():
+    media = MediaService(tools=None, runner=None)
+    args = media.build_pipe_args(Path("/tmp/playlist.txt"), StreamProfile(), ffmpeg_path="ffmpeg")
+    # concat demuxer header present, with playlist as -i target
+    assert "-f" in args and args[args.index("-f")] == "-f" and args[args.index("-f") + 1] == "concat"
+    assert "-safe" in args
+    i_idx = args.index("-i")
+    assert args[i_idx + 1] == "/tmp/playlist.txt"
+
+
+def test_build_pipe_args_uses_direct_input_for_single_video_file():
+    """User selects an .mp4 in the file picker → don't wrap in concat demuxer."""
+    media = MediaService(tools=None, runner=None)
+    for ext in (".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi"):
+        args = media.build_pipe_args(Path(f"/tmp/clip{ext}"), StreamProfile(), ffmpeg_path="ffmpeg")
+        # No concat demuxer header — -i comes right after the loop options
+        assert "concat" not in args, f"concat demuxer should not fire for {ext}"
+        i_idx = args.index("-i")
+        assert args[i_idx + 1] == f"/tmp/clip{ext}"
+
+
+def test_build_ffmpeg_args_also_handles_single_video_file():
+    """The legacy RTMP-push path must keep parity with the pipe path."""
+    media = MediaService(tools=None, runner=None)
+    profile = StreamProfile()
+    args_txt = media.build_ffmpeg_args(Path("/tmp/p.txt"), profile, "rtmp://example/live", ffmpeg_path="ffmpeg")
+    args_mp4 = media.build_ffmpeg_args(Path("/tmp/clip.mp4"), profile, "rtmp://example/live", ffmpeg_path="ffmpeg")
+    assert "concat" in args_txt
+    assert "concat" not in args_mp4
+    assert "-i" in args_txt and args_txt[args_txt.index("-i") + 1] == "/tmp/p.txt"
+    assert "-i" in args_mp4 and args_mp4[args_mp4.index("-i") + 1] == "/tmp/clip.mp4"
+
+
 # ---------- StreamServer (1-client TCP, pump fake child) ----------
 
 
